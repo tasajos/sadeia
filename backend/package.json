@@ -1,0 +1,32 @@
+{
+  "name": "sadeia-backend",
+  "version": "1.0.0",
+  "description": "SADE-IA · API REST (Node.js + Express + MySQL) del Sistema de Apoyo a la Decisión para Emergencias",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "node scripts/initDb.js",
+    "db:seed": "node scripts/seed.js",
+    "db:reset": "node scripts/initDb.js && node scripts/seed.js",
+    "simulate": "node scripts/simulate.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "mysql2": "^3.15.0",
+    "pdfkit": "^0.17.2",
+    "socket.io": "^4.8.1"
+  }
+}

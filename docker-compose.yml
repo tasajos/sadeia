@@ -1,0 +1,58 @@
+# SADE-IA · despliegue completo (MySQL 8 + API Node + Frontend Nginx)
+#   docker compose up -d --build
+#   docker compose exec backend npm run db:seed     # (opcional) datos de demostración
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-cambie_root}
+      MYSQL_DATABASE: sadeia_db
+      MYSQL_USER: sadeia_app
+      MYSQL_PASSWORD: ${DB_PASSWORD:-cambie_esta_clave}
+      TZ: America/La_Paz
+    command: ["--default-time-zone=-04:00", "--log-bin-trust-function-creators=1"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-cambie_root}"]
+      interval: 10s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql: { condition: service_healthy }
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      TZ: America/La_Paz
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: sadeia_app
+      DB_PASSWORD: ${DB_PASSWORD:-cambie_esta_clave}
+      DB_NAME: sadeia_db
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET en el archivo .env}
+      JWT_EXPIRES: 8h
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-}
+    volumes:
+      - uploads:/app/uploads
+      - exports:/app/exports
+    ports:
+      - "4000:4000"   # expuesto para la app móvil; en producción publique solo el 443 del proxy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "8080:80"
+
+volumes:
+  mysql_data:
+  uploads:
+  exports:
