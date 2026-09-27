@@ -25,7 +25,14 @@ export const env = {
   aiServiceUrl: process.env.AI_SERVICE_URL || '',
   schedulerInterval: Number(req('SCHEDULER_INTERVAL', 45)),
   uploadDir: path.resolve(req('UPLOAD_DIR', 'uploads')),
-  maxUploadMb: Number(req('MAX_UPLOAD_MB', 8))
+  maxUploadMb: Number(req('MAX_UPLOAD_MB', 8)),
+  // Fotos en Google Drive (si no se configura, se guardan en UPLOAD_DIR)
+  drive: {
+    folderId: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
+    keyFile: process.env.GOOGLE_DRIVE_KEY_FILE ? path.resolve(process.env.GOOGLE_DRIVE_KEY_FILE) : '',
+    credentialsJson: process.env.GOOGLE_DRIVE_CREDENTIALS_JSON || '',
+    impersonate: process.env.GOOGLE_DRIVE_IMPERSONATE || ''
+  }
 };
 
 if (env.nodeEnv === 'production' && env.jwtSecret.startsWith('dev-')) {

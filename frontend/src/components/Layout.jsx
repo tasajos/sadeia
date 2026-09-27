@@ -6,7 +6,7 @@ import { useApi } from '../hooks/useApi';
 import { api } from '../api/client';
 import { getSocket } from '../api/socket';
 import { NAV, LV } from '../utils/constants';
-import { useToast } from '../context/ToastContext';
+import IncomingAlert from './IncomingAlert';
 
 function Clock() {
   const [now, setNow] = useState(new Date());
@@ -55,23 +55,9 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const loc = useLocation();
   const nav = useNavigate();
-  const toast = useToast();
-  const { data: cnt } = useApi('/tablero/contadores', ['alerta:nueva', 'alerta:actualizada', 'reporte:nuevo', 'reporte:actualizado', 'tarea:actualizada']);
+  const { data: cnt } = useApi('/tablero/contadores', ['alerta:nueva', 'alerta:actualizada', 'reporte:nuevo', 'reporte:actualizado', 'tarea:actualizada', 'mision:nueva', 'despacho:actualizado']);
 
   useEffect(() => setOpen(false), [loc.pathname]);
-
-  // Avisos en tiempo real
-  useEffect(() => {
-    const s = getSocket();
-    if (!s) return undefined;
-    const onAlerta = (a) => toast(`Nueva propuesta de alerta ${a.codigo}: ${a.amenaza} · ${a.lugar} (${a.nivel.toUpperCase()})`);
-    const onRep = (r) => toast(`Nuevo reporte ciudadano ${r.codigo} · prioridad ${r.prioridad}`);
-    const onRecibida = (a) => toast(`Alerta ${a.codigo} recibida por su institución: ${a.amenaza} · ${a.lugar}`);
-    s.on('alerta:nueva', onAlerta);
-    s.on('reporte:nuevo', onRep);
-    s.on('alerta:recibida', onRecibida);
-    return () => { s.off('alerta:nueva', onAlerta); s.off('reporte:nuevo', onRep); s.off('alerta:recibida', onRecibida); };
-  }, [toast]);
 
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => can(...i.perms)) })).filter((g) => g.items.length);
 
@@ -121,6 +107,7 @@ export default function Layout() {
         </header>
         <main className="content"><Outlet /></main>
       </div>
+      <IncomingAlert />
     </div>
   );
 }

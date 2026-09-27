@@ -17,8 +17,11 @@ r.get('/contadores', async (req, res) => {
         ${req.user.permisos.includes('coordinacion.gestionar') ? '' : 'AND t.institucion_id = ' + Number(req.user.institucion_id)}`),
     q(`SELECT id, codigo, departamento FROM alerta WHERE nivel = 'roja' AND estado IN (?) ORDER BY created_at DESC`, [ALERTA_ABIERTA])
   ]);
+  const [pr] = req.user.permisos.includes('respuesta.ver')
+    ? await q(`SELECT COUNT(*) AS n FROM despacho d JOIN equipo e ON e.id = d.equipo_id WHERE d.estado = 'Despachado' AND e.institucion_id = ?`, [req.user.institucion_id])
+    : [{ n: 0 }];
   res.json({
-    alertas: Number(a.n), ciudadanos: Number(c.n), coordinacion: Number(t.n),
+    alertas: Number(a.n), ciudadanos: Number(c.n), coordinacion: Number(t.n), respuesta: Number(pr.n),
     rojas: roja.length, alertaRoja: roja[0] || null
   });
 });
@@ -44,7 +47,7 @@ r.get('/buscar', async (req, res) => {
 /** CU-09 · RF-12: tablero de situación consolidado (RNF-01: < 3 s). */
 r.get('/', can('tablero.ver'), async (_req, res) => {
   const t0 = Date.now();
-  const [alertas, eventos, tareas, recursos, instAvance] = await Promise.all([
+  const [alertas, eventos, tareas, recursos, instAvance, instituciones] = await Promise.all([
     q(`${SQL_ALERTA} WHERE a.estado IN (?) ORDER BY FIELD(a.nivel,'roja','naranja','amarilla','verde'), a.created_at DESC`, [ALERTA_ABIERTA]),
     q(`${SQL_EVENTO} WHERE e.estado = 'En curso' ORDER BY FIELD(e.nivel,'roja','naranja','amarilla','verde'), e.fecha_inicio DESC`),
     q(`SELECT t.estado, i.nombre AS institucion FROM tarea t JOIN institucion i ON i.id = t.institucion_id
@@ -53,7 +56,11 @@ r.get('/', can('tablero.ver'), async (_req, res) => {
                 COALESCE((SELECT SUM(cantidad) FROM asignacion_recurso WHERE estado = 'Asignado'),0) AS usados FROM recurso r`),
     q(`SELECT i.sigla, i.nombre AS inst, COUNT(*) AS total, SUM(t.estado = 'Completada') AS done, ROUND(AVG(t.avance)) AS pct
          FROM tarea t JOIN institucion i ON i.id = t.institucion_id JOIN evento e ON e.id = t.evento_id
-        WHERE e.estado = 'En curso' GROUP BY i.id ORDER BY total DESC LIMIT 6`)
+        WHERE e.estado = 'En curso' GROUP BY i.id ORDER BY total DESC LIMIT 6`),
+    // Capa de instituciones: se actualiza sola cuando el administrador registra o mueve una institución
+    q(`SELECT i.id, i.sigla, i.nombre, i.tipo, i.icono, i.sede, i.municipio, i.lat, i.lng, i.radio_km,
+              (SELECT COUNT(*) FROM equipo e WHERE e.institucion_id = i.id AND e.estado = 'Disponible') AS unidades_disponibles
+         FROM institucion i WHERE i.activa = 1 AND i.lat IS NOT NULL`)
   ]);
 
   const A = alertas.map(alertaDTO);
@@ -82,6 +89,7 @@ r.get('/', can('tablero.ver'), async (_req, res) => {
     eventos: eventos.map((e) => ({ id: e.id, codigo: e.codigo, titulo: e.titulo, nivel: e.nivel, fecha_inicio: e.fecha_inicio, impacto: e.impacto, icono: e.icono })),
     avanceInstituciones: instAvance.map((i) => ({ ...i, total: Number(i.total), done: Number(i.done), pct: Number(i.pct) || 0 })),
     mapa,
+    instituciones: instituciones.map((i) => ({ ...i, unidades_disponibles: Number(i.unidades_disponibles) })),
     consultaMs: Date.now() - t0,
     generado: new Date()
   });

@@ -16,7 +16,10 @@ r.post('/login', loginLimiter, async (req, res) => {
   const login = String(req.body.username || req.body.usuario || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   if (!login || !password) throw badRequest('Ingrese usuario y contraseña');
-  const u = await one('SELECT * FROM usuario WHERE LOWER(username) = ? OR LOWER(email) = ?', [login, login]);
+  const u = await one(
+    'SELECT u.*, i.activa AS institucion_activa FROM usuario u JOIN institucion i ON i.id = u.institucion_id WHERE LOWER(u.username) = ? OR LOWER(u.email) = ?',
+    [login, login]
+  );
   const ip = clientIp(req);
   if (!u) {
     await audit({ usuario: login.slice(0, 40), operacion: 'LOGIN_FALLIDO', objeto: 'usuario inexistente', ip });
@@ -27,6 +30,10 @@ r.post('/login', loginLimiter, async (req, res) => {
     throw unauthorized('Usuario bloqueado. Contacte al administrador.');
   }
   const ok = await bcrypt.compare(password, u.password_hash);
+  if (ok && !u.institucion_activa) {
+    await audit({ usuario: u.username, operacion: 'LOGIN_BLOQUEADO', objeto: 'institución desactivada', ip });
+    throw unauthorized('Su institución está desactivada. Contacte al administrador.');
+  }
   if (!ok) {
     const intentos = u.intentos_fallidos + 1;
     const bloquear = intentos >= env.maxLoginAttempts;

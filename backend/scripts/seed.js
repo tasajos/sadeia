@@ -18,32 +18,34 @@ const ins = async (sql, params) => (await pool.query(sql, params))[0].insertId;
 console.log('[seed] Insertando catálogos…');
 
 /* ------------------------------ Instituciones ------------------------------ */
+// sigla, nombre, tipo, departamento, icono, sede, municipio, lat, lng, radio de jurisdicción (km)
 const INST = [
-  ['COEN', 'Centro de Operaciones de Emergencia Nacional', 'Nacional', null, 'hub'],
-  ['VIDECI', 'Viceministerio de Defensa Civil', 'Nacional', null, 'shield'],
-  ['FFAA', 'FF.AA. · Octava División', 'Nacional', null, 'military_tech'],
-  ['POL', 'Policía Boliviana', 'Nacional', null, 'local_police'],
-  ['SENAMHI', 'SENAMHI', 'Técnica', null, 'thermostat'],
-  ['SNHN', 'Servicio Nacional de Hidrografía Naval', 'Técnica', null, 'sailing'],
-  ['ABT', 'ABT', 'Técnica', null, 'forest'],
-  ['NASA', 'NASA FIRMS', 'Técnica', null, 'satellite_alt'],
-  ['OSC', 'Observatorio San Calixto', 'Técnica', null, 'earthquake'],
-  ['UTI', 'UTI', 'Otra', null, 'dns'],
-  ['GOB-BENI', 'Gobernación del Beni', 'Departamental', 'Beni', 'account_balance'],
-  ['GAM-TDD', 'GAM Trinidad', 'Municipal', 'Beni', 'location_city'],
-  ['SEDES-BENI', 'SEDES Beni', 'Primera respuesta', 'Beni', 'local_hospital'],
-  ['SAR-BENI', 'Voluntarios SAR Beni', 'Primera respuesta', 'Beni', 'health_and_safety'],
-  ['GOB-SCZ', 'Gobernación de Santa Cruz', 'Departamental', 'Santa Cruz', 'account_balance'],
-  ['GAM-LPZ', 'GAM La Paz', 'Municipal', 'La Paz', 'location_city'],
-  ['GOB-ORU', 'Gobernación de Oruro', 'Departamental', 'Oruro', 'account_balance'],
-  ['GAM-SAC', 'GAM Sacaba', 'Municipal', 'Cochabamba', 'location_city'],
-  ['GOB-PTS', 'Gobernación de Potosí', 'Departamental', 'Potosí', 'account_balance']
+  ['COEN', 'Centro de Operaciones de Emergencia Nacional', 'Nacional', 'La Paz', 'hub', 'Edificio COEN, Av. Arce', 'La Paz', -16.5092, -68.1261, 1500],
+  ['VIDECI', 'Viceministerio de Defensa Civil', 'Nacional', 'La Paz', 'shield', 'Ministerio de Defensa, Plaza Avaroa', 'La Paz', -16.5105, -68.1250, 1500],
+  ['FFAA', 'FF.AA. · Octava División', 'Nacional', 'Santa Cruz', 'military_tech', 'Comando de la Octava División', 'Santa Cruz de la Sierra', -17.7650, -63.1820, 1500],
+  ['POL', 'Policía Boliviana', 'Nacional', 'La Paz', 'local_police', 'Comando General de la Policía', 'La Paz', -16.4970, -68.1340, 1500],
+  ['SENAMHI', 'SENAMHI', 'Técnica', 'La Paz', 'thermostat', 'Oficina central SENAMHI', 'La Paz', -16.5060, -68.1190, 1500],
+  ['SNHN', 'Servicio Nacional de Hidrografía Naval', 'Técnica', 'La Paz', 'sailing', 'Oficina central SNHN', 'La Paz', -16.5200, -68.1100, 1500],
+  ['ABT', 'ABT', 'Técnica', 'Santa Cruz', 'forest', 'Oficina central ABT', 'Santa Cruz de la Sierra', -17.7830, -63.1700, 1500],
+  ['NASA', 'NASA FIRMS', 'Técnica', null, 'satellite_alt', null, null, null, null, 1500],
+  ['OSC', 'Observatorio San Calixto', 'Técnica', 'La Paz', 'earthquake', 'Observatorio San Calixto', 'La Paz', -16.4950, -68.1370, 1500],
+  ['UTI', 'UTI', 'Otra', 'La Paz', 'dns', 'Centro de datos UTI', 'La Paz', -16.5090, -68.1270, 1500],
+  ['GOB-BENI', 'Gobernación del Beni', 'Departamental', 'Beni', 'account_balance', 'Palacio de Gobierno, Plaza Mcal. Ballivián', 'Trinidad', -14.8340, -64.9040, 400],
+  ['GAM-TDD', 'GAM Trinidad', 'Municipal', 'Beni', 'location_city', 'Alcaldía de Trinidad', 'Trinidad', -14.8330, -64.9010, 40],
+  ['SEDES-BENI', 'SEDES Beni', 'Primera respuesta', 'Beni', 'local_hospital', 'Hospital Presidente Germán Busch', 'Trinidad', -14.8300, -64.9050, 60],
+  ['SAR-BENI', 'Voluntarios SAR Beni', 'Primera respuesta', 'Beni', 'health_and_safety', 'Base SAR Beni', 'Trinidad', -14.8000, -64.9300, 80],
+  ['GOB-SCZ', 'Gobernación de Santa Cruz', 'Departamental', 'Santa Cruz', 'account_balance', 'Gobernación, Plaza 24 de Septiembre', 'Santa Cruz de la Sierra', -17.7840, -63.1810, 500],
+  ['GAM-LPZ', 'GAM La Paz', 'Municipal', 'La Paz', 'location_city', 'Palacio Consistorial', 'La Paz', -16.4960, -68.1330, 40],
+  ['GOB-ORU', 'Gobernación de Oruro', 'Departamental', 'Oruro', 'account_balance', 'Gobernación de Oruro', 'Oruro', -17.9670, -67.1140, 300],
+  ['GAM-SAC', 'GAM Sacaba', 'Municipal', 'Cochabamba', 'location_city', 'Alcaldía de Sacaba', 'Sacaba', -17.4000, -66.0400, 30],
+  ['GOB-PTS', 'Gobernación de Potosí', 'Departamental', 'Potosí', 'account_balance', 'Gobernación de Potosí', 'Potosí', -19.5890, -65.7530, 400]
 ];
 const I = {};
-for (const [sigla, nombre, tipo, dep, icono] of INST) {
+for (const [sigla, nombre, tipo, dep, icono, sede, mun, lat, lng, radio] of INST) {
   // GAM La Paz con un canal externo caído: demuestra el reintento automático de notificación (flujo 7.a).
   const webhook = sigla === 'GAM-LPZ' ? 'http://127.0.0.1:9/webhook-no-disponible' : null;
-  I[sigla] = await ins('INSERT INTO institucion (sigla, nombre, tipo, departamento, icono, webhook_url) VALUES (?,?,?,?,?,?)', [sigla, nombre, tipo, dep, icono, webhook]);
+  I[sigla] = await ins('INSERT INTO institucion (sigla, nombre, tipo, departamento, icono, sede, municipio, lat, lng, radio_km, webhook_url) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+    [sigla, nombre, tipo, dep, icono, sede, mun, lat, lng, radio, webhook]);
 }
 
 /* ------------------------------ Roles y permisos ------------------------------ */
@@ -53,13 +55,13 @@ const ROLES = [
   ['DECISOR', 'Decisor', 'Autoridad competente: valida alertas y aprueba cursos de acción.'],
   ['ENLACE', 'Enlace', 'Enlace interinstitucional: recibe alertas y reporta avance de tareas.'],
   ['ADMIN', 'Administrador', 'Administración de usuarios, roles, permisos y auditoría.'],
-  ['RESCATE', 'Equipo de rescate', 'Primera respuesta: recibe misiones y reporta desde el sitio.']
+  ['PRIMERA_RESPUESTA', 'Equipo de primera respuesta', 'Equipo de primera respuesta de su institución: atiende despachos y gestiona su personal, vehículos, equipamiento y especialidades.']
 ];
 const R = {};
 for (const [codigo, nombre, desc] of ROLES) R[codigo] = await ins('INSERT INTO rol (codigo, nombre, descripcion) VALUES (?,?,?)', [codigo, nombre, desc]);
 
 const PERMISOS = [
-  ['tablero.ver', 'Operación', 'Ver tablero de situación', ['OPERADOR', 'ANALISTA', 'DECISOR', 'ENLACE', 'ADMIN', 'RESCATE']],
+  ['tablero.ver', 'Operación', 'Ver tablero de situación', ['OPERADOR', 'ANALISTA', 'DECISOR', 'ENLACE', 'ADMIN', 'PRIMERA_RESPUESTA']],
   ['alertas.ver', 'Operación', 'Ver alertas tempranas', ['OPERADOR', 'ANALISTA', 'DECISOR', 'ADMIN']],
   ['alertas.gestionar', 'Operación', 'Emitir, modificar o descartar alertas', ['OPERADOR', 'DECISOR', 'ADMIN']],
   ['alertas.validar', 'Operación', 'Validar alertas como autoridad competente', ['DECISOR', 'ADMIN']],
@@ -80,8 +82,13 @@ const PERMISOS = [
   ['reportes.exportar', 'Análisis', 'Exportar reportes (PDF, XLSX, CSV)', ['OPERADOR', 'ANALISTA', 'DECISOR', 'ADMIN']],
   ['admin.usuarios', 'Sistema', 'Administrar usuarios', ['ADMIN']],
   ['admin.roles', 'Sistema', 'Administrar roles y permisos', ['ADMIN']],
+  ['admin.instituciones', 'Sistema', 'Administrar instituciones y su ubicación', ['ADMIN']],
   ['bitacora.ver', 'Sistema', 'Consultar bitácora de auditoría', ['ADMIN']],
-  ['rescate.misiones', 'Apps móviles', 'Recibir misiones de rescate', ['RESCATE']]
+  ['respuesta.ver', 'Primera respuesta', 'Ver emergencias despachadas en su jurisdicción', ['PRIMERA_RESPUESTA']],
+  ['respuesta.atender', 'Primera respuesta', 'Aceptar y actualizar despachos de su institución', ['PRIMERA_RESPUESTA']],
+  ['respuesta.usuarios', 'Primera respuesta', 'Crear y administrar usuarios de su institución', ['PRIMERA_RESPUESTA']],
+  ['respuesta.recursos', 'Primera respuesta', 'Registrar unidades, vehículos, equipamiento y especialidades', ['PRIMERA_RESPUESTA']],
+  ['rescate.misiones', 'Primera respuesta', 'Recibir misiones en la app móvil de primera respuesta', ['PRIMERA_RESPUESTA']]
 ];
 let orden = 0;
 for (const [codigo, modulo, nombre, roles] of PERMISOS) {
@@ -94,7 +101,7 @@ const EQUIPOS = [
   ['BR-03', 'Bomberos Trinidad', 'POL', '6 efectivos · bote', 'fire_truck', -14.826, -64.897, 'Disponible'],
   ['AMB-07', 'Ambulancia', 'SEDES-BENI', '2 paramédicos', 'ambulance', -14.822, -64.915, 'Disponible'],
   ['FFAA-R2', 'Pelotón de rescate acuático', 'FFAA', '12 efectivos · 2 botes', 'military_tech', -14.812, -64.889, 'Disponible'],
-  ['SAR-B1', 'SAR Beni', 'SAR-BENI', '8 rescatistas', 'health_and_safety', -14.80, -64.93, 'En misión'],
+  ['SAR-B1', 'SAR Beni', 'SAR-BENI', '8 rescatistas', 'health_and_safety', -14.80, -64.93, 'Disponible'],
   ['BF-12', 'Bomberos forestales', 'GOB-SCZ', '20 brigadistas', 'local_fire_department', -16.05, -61.50, 'En misión'],
   ['FFAA-F1', 'Compañía forestal', 'FFAA', '40 efectivos', 'military_tech', -16.12, -61.60, 'Disponible'],
   ['GAM-LP', 'Brigada de riesgos', 'GAM-LPZ', '10 técnicos', 'engineering', -16.64, -68.03, 'Disponible'],
@@ -118,14 +125,55 @@ const USERS = [
   ['lvaca', 'Lic. María Vaca', 'ENLACE', 'GAM-TDD', 'Activo', 112],
   ['dchoque', 'Ing. Daniel Choque', 'ADMIN', 'UTI', 'Activo', 121],
   ['pticona', 'Ing. Pablo Ticona', 'ANALISTA', 'SENAMHI', 'Bloqueado', 34000],
-  ['lmendez', 'Sgto. Luis Méndez', 'RESCATE', 'POL', 'Activo', 60]
+  ['lmendez', 'Sgto. Luis Méndez', 'PRIMERA_RESPUESTA', 'POL', 'Activo', 60],
+  ['mnoe', 'Lic. Mariela Noe', 'PRIMERA_RESPUESTA', 'SAR-BENI', 'Activo', 95]
 ];
+// Cada equipo de primera respuesta pertenece a su propia institución
+const EQUIPO_DE = { lmendez: 'BR-03', mnoe: 'SAR-B1' };
 const U = {};
 for (const [user, nombre, rol, inst, estado, min] of USERS) {
   U[user] = await ins(
     'INSERT INTO usuario (username, email, nombre, password_hash, rol_id, institucion_id, equipo_id, estado, ultimo_acceso) VALUES (?,?,?,?,?,?,?,?,?)',
-    [user, `${user}@${inst.toLowerCase().replace(/[^a-z]/g, '')}.gob.bo`, nombre, hash, R[rol], I[inst], user === 'lmendez' ? EQ['BR-03'] : null, estado, ago(min)]
+    [user, `${user}@${inst.toLowerCase().replace(/[^a-z]/g, '')}.gob.bo`, nombre, hash, R[rol], I[inst], EQUIPO_DE[user] ? EQ[EQUIPO_DE[user]] : null, estado, ago(min)]
   );
+}
+
+/* ------------------------------ Recursos propios de primera respuesta ------------------------------ */
+// institución, código, placa, tipo, marca/modelo, año, capacidad, estado, unidad
+const VEHICULOS = [
+  ['POL', 'AB-03', '2345-KTR', 'Autobomba', 'Mercedes-Benz Atego 1726', 2019, '4.000 L · 6 plazas', 'Operativo', 'BR-03'],
+  ['POL', 'BT-03', null, 'Bote de rescate', 'Zodiac MK5 · 40 HP', 2021, '8 personas', 'Operativo', 'BR-03'],
+  ['POL', 'CR-11', '4410-LPA', 'Camioneta de rescate', 'Toyota Hilux 4x4', 2020, '5 plazas', 'En mantenimiento', 'BR-11'],
+  ['SAR-BENI', 'SAR-V1', '3127-BNI', 'Camioneta de rescate', 'Nissan Frontier 4x4', 2018, '5 plazas', 'Operativo', 'SAR-B1'],
+  ['SAR-BENI', 'SAR-L1', null, 'Bote de rescate', 'Lancha de aluminio · 60 HP', 2016, '10 personas', 'Operativo', 'SAR-B1']
+];
+const VH = {};
+for (const [inst, cod, placa, tipo, mm, anio, cap, est, eq] of VEHICULOS) {
+  VH[cod] = await ins('INSERT INTO vehiculo (institucion_id, codigo, placa, tipo, marca_modelo, anio, capacidad, estado, equipo_id) VALUES (?,?,?,?,?,?,?,?,?)',
+    [I[inst], cod, placa, tipo, mm, anio, cap, est, EQ[eq]]);
+}
+const EQUIPAMIENTO = [
+  ['POL', 'Equipo de respiración autónoma (ERA)', 'Protección personal', 8, 'equipos', 'AB-03'],
+  ['POL', 'Herramienta hidráulica de rescate', 'Rescate vehicular', 1, 'juego', 'AB-03'],
+  ['POL', 'Chalecos salvavidas', 'Rescate acuático', 12, 'unidades', 'BT-03'],
+  ['POL', 'Desfibrilador externo automático', 'Atención prehospitalaria', 1, 'equipo', 'AB-03'],
+  ['SAR-BENI', 'Cuerdas estáticas 11 mm', 'Rescate en altura', 6, 'rollos', 'SAR-V1'],
+  ['SAR-BENI', 'Radios VHF portátiles', 'Comunicaciones', 10, 'unidades', null],
+  ['SAR-BENI', 'Trajes de neopreno', 'Rescate acuático', 8, 'unidades', 'SAR-L1']
+];
+for (const [inst, nombre, cat, cant, un, vh] of EQUIPAMIENTO) {
+  await pool.query('INSERT INTO equipamiento (institucion_id, nombre, categoria, cantidad, unidad, vehiculo_id) VALUES (?,?,?,?,?,?)', [I[inst], nombre, cat, cant, un, vh ? VH[vh] : null]);
+}
+const ESPECIALIDADES = [
+  ['POL', 'Incendios estructurales', 'local_fire_department', ['lmendez']],
+  ['POL', 'Rescate acuático', 'pool', ['lmendez']],
+  ['POL', 'Materiales peligrosos', 'science', []],
+  ['SAR-BENI', 'Búsqueda y rescate en inundaciones', 'flood', ['mnoe']],
+  ['SAR-BENI', 'Atención prehospitalaria', 'medical_services', ['mnoe']]
+];
+for (const [inst, nombre, icono, users] of ESPECIALIDADES) {
+  const eid = await ins('INSERT INTO especialidad (institucion_id, nombre, icono) VALUES (?,?,?)', [I[inst], nombre, icono]);
+  for (const u of users) await pool.query('INSERT INTO usuario_especialidad (usuario_id, especialidad_id) VALUES (?,?)', [U[u], eid]);
 }
 
 /* ------------------------------ Amenazas, variables y umbrales ------------------------------ */

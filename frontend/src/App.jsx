@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import { Loading } from './components/ui';
+import { homeFor } from './utils/constants';
 
 const Tablero = lazy(() => import('./pages/Tablero'));
 const Alertas = lazy(() => import('./pages/Alertas'));
@@ -14,15 +15,16 @@ const Fuentes = lazy(() => import('./pages/Fuentes'));
 const Modelos = lazy(() => import('./pages/Modelos'));
 const Reportes = lazy(() => import('./pages/Reportes'));
 const Admin = lazy(() => import('./pages/Admin'));
+const Respuesta = lazy(() => import('./pages/Respuesta'));
 
 /** Protege una ruta por permiso (RNF-04). */
 function Guard({ perms, children }) {
   const { can } = useAuth();
-  return can(...perms) ? children : <Navigate to="/tablero" replace />;
+  return can(...perms) ? children : <Navigate to={homeFor(can)} replace />;
 }
 
 export default function App() {
-  const { user, ready } = useAuth();
+  const { user, ready, can } = useAuth();
   if (!ready) return <Loading text="Iniciando SADE-IA…" />;
   if (!user) {
     return (
@@ -43,8 +45,9 @@ export default function App() {
           <Route path="/fuentes" element={<Guard perms={['fuentes.ver']}><Fuentes /></Guard>} />
           <Route path="/modelos" element={<Guard perms={['modelos.ver']}><Modelos /></Guard>} />
           <Route path="/reportes" element={<Guard perms={['reportes.ver']}><Reportes /></Guard>} />
-          <Route path="/admin" element={<Guard perms={['admin.usuarios', 'admin.roles', 'bitacora.ver']}><Admin /></Guard>} />
-          <Route path="*" element={<Navigate to="/tablero" replace />} />
+          <Route path="/admin" element={<Guard perms={['admin.usuarios', 'admin.roles', 'admin.instituciones', 'bitacora.ver']}><Admin /></Guard>} />
+          <Route path="/respuesta/:tab?" element={<Guard perms={['respuesta.ver']}><Respuesta /></Guard>} />
+          <Route path="*" element={<Navigate to={homeFor(can)} replace />} />
         </Route>
       </Routes>
     </Suspense>

@@ -47,10 +47,10 @@ export function initSocket(httpServer) {
   return io;
 }
 
-/** Emite a una sala (o a todo el personal si no se indica). */
+/** Emite a una o varias salas (o a todo el personal si no se indica). Con varias salas, cada socket lo recibe una sola vez. */
 export function emit(event, payload, room = 'staff') {
   if (!io) return;
-  (Array.isArray(room) ? room : [room]).forEach((r) => io.to(r).emit(event, payload));
+  io.to(room).emit(event, payload);
 }
 
 /** Emite a todos, incluidos clientes públicos (p. ej., alerta validada para la app ciudadana). */

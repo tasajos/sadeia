@@ -20,6 +20,8 @@ import adminRoutes from './routes/admin.routes.js';
 import citizenReportsRoutes from './routes/citizenReports.routes.js';
 import missionsRoutes from './routes/missions.routes.js';
 import publicRoutes from './routes/public.routes.js';
+import respuestaRoutes from './routes/respuesta.routes.js';
+import mediaRoutes from './routes/media.routes.js';
 
 export function createApp() {
   const app = express();
@@ -36,6 +38,7 @@ export function createApp() {
   if (env.nodeEnv !== 'test') app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 
   // Archivos subidos (fotos de reportes, informes, reportes exportados)
+  app.use('/uploads', mediaRoutes); // fotos en Google Drive (/uploads/drive/<id>)
   app.use('/uploads', express.static(env.uploadDir, { maxAge: '7d' }));
 
   // Salud del servicio (monitoreo de disponibilidad RNF-02)
@@ -65,6 +68,7 @@ export function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/reportes-ciudadanos', citizenReportsRoutes);
   app.use('/api/misiones', missionsRoutes);
+  app.use('/api/respuesta', respuestaRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

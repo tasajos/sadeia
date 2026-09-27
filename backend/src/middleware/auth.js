@@ -8,7 +8,8 @@ export async function loadProfile(userId) {
   const u = await one(
     `SELECT u.id, u.username, u.email, u.nombre, u.estado, u.telefono, u.equipo_id,
             r.id AS rol_id, r.codigo AS rol, r.nombre AS rol_nombre,
-            i.id AS institucion_id, i.sigla AS institucion, i.nombre AS institucion_nombre
+            i.id AS institucion_id, i.sigla AS institucion, i.nombre AS institucion_nombre, i.icono AS institucion_icono,
+            i.activa AS institucion_activa
        FROM usuario u JOIN rol r ON r.id = u.rol_id JOIN institucion i ON i.id = u.institucion_id
       WHERE u.id = ?`,
     [userId]
@@ -47,6 +48,7 @@ export async function authenticate(req, _res, next) {
     const u = await loadProfile(payload.sub);
     if (!u) throw unauthorized('Usuario inexistente');
     if (u.estado !== 'Activo') throw unauthorized('Usuario bloqueado');
+    if (!u.institucion_activa) throw unauthorized('Su institución está desactivada');
     req.user = u;
     next();
   } catch (e) {

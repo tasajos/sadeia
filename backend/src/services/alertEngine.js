@@ -87,7 +87,7 @@ export async function evaluarLugar({ municipio, departamento, lat, lng }) {
         [codigo, pred.id, a.id, departamento, lugar, lat, lng, res.nivel, res.nivel, res.probabilidad, a.horizonte, mv.etiqueta, JSON.stringify(res.variables)]
       );
       await audit({ usuario: 'motor-ia', operacion: 'PROPONER_ALERTA', objeto: codigo, detalle: { nivel: res.nivel } });
-      emit('alerta:nueva', { id: r.insertId, codigo, nivel: res.nivel, amenaza: a.nombre, lugar }, 'perm:alertas.ver');
+      emit('alerta:nueva', { id: r.insertId, codigo, nivel: res.nivel, amenaza: a.nombre, lugar, probabilidad: res.probabilidad, horizonte: a.horizonte }, 'perm:alertas.ver');
       out.push({ prediccion: pred, alerta: codigo, nueva: true });
     } else if (ALERTA_PENDIENTE.includes(abierta.estado)) {
       // La propuesta pendiente se actualiza con la nueva evidencia; el nivel solo escala, nunca baja solo.

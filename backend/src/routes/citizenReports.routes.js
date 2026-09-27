@@ -55,7 +55,11 @@ r.post('/:id/despachar', can('ciudadanos.gestionar'), async (req, res) => {
     return ins.insertId;
   });
   await auditReq(req, 'DESPACHAR_EQUIPO', `${eq.codigo} → ${rep.codigo}`, { eta_min: eta, km: km.toFixed(1) });
-  emit('mision:nueva', { despacho_id: despachoId, reporte: rep.codigo, prioridad: rep.prioridad, titulo: rep.titulo }, `equipo:${eq.id}`);
+  // La misión llega a la unidad (app móvil) y a toda su institución de primera respuesta (web)
+  emit('mision:nueva', {
+    despacho_id: despachoId, reporte_id: rep.id, reporte: rep.codigo, prioridad: rep.prioridad, titulo: rep.titulo, icono: rep.icono, lugar: rep.lugar,
+    personas_riesgo: !!rep.personas_riesgo, equipo: eq.codigo, eta_min: eta, distancia_km: Math.round(km * 10) / 10
+  }, [`equipo:${eq.id}`, `inst:${eq.institucion_id}`]);
   emit('reporte:actualizado', { codigo: rep.codigo, estado: 'Equipo despachado' }, ['perm:ciudadanos.ver', `reporte:${rep.codigo}`]);
   res.json({ ok: true, despacho_id: despachoId, eta_min: eta, distancia_km: Math.round(km * 10) / 10 });
 });

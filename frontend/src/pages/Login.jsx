@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { errMsg } from '../api/client';
+import { homeFor } from '../utils/constants';
 
 // Accesos de demostración (desactivar en producción con VITE_DEMO_LOGIN=false)
 const DEMO = import.meta.env.VITE_DEMO_LOGIN !== 'false';
@@ -12,7 +13,8 @@ const DEMO_ROLES = [
   { inst: 'VIDECI', role: 'Decisor', user: 'marce' },
   { inst: 'FF.AA.', role: 'Enlace', user: 'rsuarez' },
   { inst: 'UTI', role: 'Administrador', user: 'dchoque' },
-  { inst: 'Bomberos', role: 'Equipo de rescate', user: 'lmendez' }
+  { inst: 'Policía · BR-03', role: 'Equipo de primera respuesta', user: 'lmendez' },
+  { inst: 'SAR Beni', role: 'Equipo de primera respuesta', user: 'mnoe' }
 ];
 
 export default function Login() {
@@ -28,8 +30,8 @@ export default function Login() {
     setBusy(true);
     setError('');
     try {
-      await login(username, password);
-      nav('/tablero', { replace: true });
+      const u = await login(username, password);
+      nav(homeFor((...p) => p.some((x) => u.permisos.includes(x))), { replace: true });
     } catch (err) {
       setError(errMsg(err));
     } finally {

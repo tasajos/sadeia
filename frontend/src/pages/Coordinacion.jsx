@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { PageHead, StatusChip, Loading, Empty, Modal, Seg, Bar } from '../components/ui';
 import { fShort, num } from '../utils/format';
+import PhotoViewer from '../components/PhotoViewer';
 
 const EV = ['tarea:actualizada', 'tarea:nueva', 'recurso:actualizado', 'evento:nuevo'];
 
@@ -17,6 +18,7 @@ function TareaModal({ id, onClose, onSaved }) {
   const [avance, setAvance] = useState(null);
   const [obs, setObs] = useState('');
   const [foto, setFoto] = useState(null);
+  const [visor, setVisor] = useState(null);
   if (!t) return <Modal title="Tarea" onClose={onClose}><Loading /></Modal>;
   const val = avance ?? t.avance;
   const puede = can('tareas.reportar', 'coordinacion.gestionar');
@@ -55,11 +57,12 @@ function TareaModal({ id, onClose, onSaved }) {
         {t.avances.length ? t.avances.map((a) => (
           <div key={a.id} className="sb" style={{ borderBottom: '1px solid var(--fondo)', paddingBottom: 8, alignItems: 'flex-start' }}>
             <div className="stack" style={{ gap: 2 }}><span style={{ fontWeight: 600 }}>{a.usuario}</span><span className="muted" style={{ fontSize: 13 }}>{a.observacion || '—'}</span>
-              {a.foto && <a href={a.foto} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>Ver foto</a>}</div>
+              {a.foto && <button type="button" className="link-btn" onClick={() => setVisor(a)}><Icon name="photo" size={16} />Ver foto</button>}</div>
             <div className="stack" style={{ alignItems: 'flex-end', gap: 2 }}><span className="mono">{a.avance} %</span><span className="muted mono" style={{ fontSize: 12 }}>{fShort(a.fecha)}</span></div>
           </div>
         )) : <span className="muted">Sin reportes aún.</span>}
       </div>
+      {visor && <PhotoViewer fotos={[visor.foto]} titulo={t.titulo} subtitulo={`Avance ${visor.avance} % · ${visor.usuario}`} onClose={() => setVisor(null)} />}
     </Modal>
   );
 }

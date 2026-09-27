@@ -6,7 +6,7 @@ import { PageHead, Kpi, Card, LevelBadge, Loading, ErrorNote, Bar, Empty } from 
 import { SituationMap } from '../components/MapView';
 import { ago, fShort, dec } from '../utils/format';
 
-const EVENTS = ['alerta:nueva', 'alerta:actualizada', 'evento:nuevo', 'evento:actualizado', 'tarea:actualizada', 'recurso:actualizado'];
+const EVENTS = ['alerta:nueva', 'alerta:actualizada', 'evento:nuevo', 'evento:actualizado', 'tarea:actualizada', 'recurso:actualizado', 'institucion:actualizada'];
 
 export default function Tablero() {
   const { data, error, loading, updatedAt } = useApi('/tablero', EVENTS);
@@ -29,8 +29,8 @@ export default function Tablero() {
       </div>
 
       <div className="two-col">
-        <Card title="Mapa de amenazas activas" actions={<small className="muted">9 departamentos · Leaflet / OpenStreetMap</small>} style={{ overflow: 'hidden' }}>
-          <SituationMap points={data.mapa} onSelect={(p) => openAlert(p.id)} />
+        <Card title="Mapa de amenazas activas" actions={<small className="muted">9 departamentos · {data.instituciones?.length || 0} instituciones · Leaflet / OpenStreetMap</small>} style={{ overflow: 'hidden' }}>
+          <SituationMap points={data.mapa} instituciones={data.instituciones} onSelect={(p) => openAlert(p.id)} />
         </Card>
         <Card title="Alertas activas" actions={can('alertas.ver') && <button className="btn ghost" onClick={() => nav('/alertas')}>Ver todas</button>}>
           <div style={{ overflow: 'auto', maxHeight: 480 }}>

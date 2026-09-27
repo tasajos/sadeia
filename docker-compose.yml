@@ -39,8 +39,13 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
       AI_SERVICE_URL: ${AI_SERVICE_URL:-}
+      # Fotos en Google Drive (clave JSON en ./backend/credentials/google-drive.json)
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
+      GOOGLE_DRIVE_KEY_FILE: /app/credentials/google-drive.json
+      GOOGLE_DRIVE_IMPERSONATE: ${GOOGLE_DRIVE_IMPERSONATE:-}
     volumes:
       - uploads:/app/uploads
+      - ./backend/credentials:/app/credentials:ro
       - exports:/app/exports
     ports:
       - "4000:4000"   # expuesto para la app móvil; en producción publique solo el 443 del proxy

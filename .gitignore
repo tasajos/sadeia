@@ -9,3 +9,4 @@ mobile/android/
 mobile/ios/
 *.log
 .DS_Store
+backend/credentials/

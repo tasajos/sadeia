@@ -107,7 +107,7 @@ export function Explanation({ vars = [], color = 'var(--azul-600)' }) {
   );
 }
 
-export function Modal({ title, onClose, children, footer }) {
+export function Modal({ title, onClose, children, footer, large }) {
   useEffect(() => {
     const k = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', k);
@@ -115,7 +115,7 @@ export function Modal({ title, onClose, children, footer }) {
   }, [onClose]);
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`modal ${large ? 'lg' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head"><b>{title}</b><button className="icon-btn" onClick={onClose} aria-label="Cerrar"><Icon name="close" /></button></div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}

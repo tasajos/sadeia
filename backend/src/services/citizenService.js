@@ -15,7 +15,7 @@ export async function despachosDe(reporteId) {
 export async function equiposCercanos(rep, despachos) {
   const eqs = await q(
     `SELECT e.*, i.sigla AS institucion, i.nombre AS institucion_nombre FROM equipo e JOIN institucion i ON i.id = e.institucion_id
-      WHERE e.lat IS NOT NULL AND e.estado <> 'Fuera de servicio'`
+      WHERE e.lat IS NOT NULL AND e.estado <> 'Fuera de servicio' AND i.activa = 1`
   );
   const activos = despachos.filter((d) => d.estado !== 'Rechazada');
   const lista = eqs
@@ -59,7 +59,7 @@ export async function detalleReporte(idOrCodigo, { publico = false } = {}) {
   const despachos = await despachosDe(rep.id);
   const base = {
     id: rep.id, codigo: rep.codigo, tipo: rep.tipo, icono: rep.icono, titulo: rep.titulo, descripcion: rep.descripcion, lugar: rep.lugar,
-    departamento: rep.departamento, lat: rep.lat, lng: rep.lng, precision_m: rep.precision_m, prioridad: rep.prioridad, estado: rep.estado,
+    departamento: rep.departamento, lat: rep.lat, lng: rep.lng, precision_m: rep.precision_m, ubicacion_origen: rep.ubicacion_origen, prioridad: rep.prioridad, estado: rep.estado,
     created_at: rep.created_at, fotos: fotos.map((f) => fotoUrl(f.ruta)),
     pasos: pasosSeguimiento(rep, despachos)
   };

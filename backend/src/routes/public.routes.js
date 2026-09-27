@@ -42,15 +42,16 @@ r.post('/reportes', envioLimiter, folder('reportes'), uploadPhotos, async (req, 
   const tri = await triaje({ tipo, descripcion: b.descripcion, lat, lng, personas_riesgo: personas });
   const token = crypto.randomBytes(16).toString('hex');
   const t = TIPOS_REPORTE[tipo];
+  const manual = b.ubicacion_origen === 'Manual';
 
   const { id, codigo } = await tx(async (c) => {
     const codigo = await nextCode('REP', 4, c);
     const [ins] = await c.query(
-      `INSERT INTO reporte_ciudadano (codigo, token_seguimiento, tipo, icono, titulo, descripcion, lugar, departamento, lat, lng, precision_m,
+      `INSERT INTO reporte_ciudadano (codigo, token_seguimiento, tipo, icono, titulo, descripcion, lugar, departamento, lat, lng, precision_m, ubicacion_origen,
          personas_riesgo, riesgo_detalle, prioridad, reportante, telefono, ia_tipo, ia_confianza, ia_nota, duplicados, alerta_id, evento_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [codigo, token, tipo, t.icon, String(b.titulo || `${t.label} · reporte ciudadano`).slice(0, 150), String(b.descripcion || '').slice(0, 2000),
-        String(b.lugar || '').slice(0, 150) || null, tri.departamento, lat, lng, b.precision_m ? Math.round(Number(b.precision_m)) : null,
+        String(b.lugar || '').slice(0, 150) || null, tri.departamento, lat, lng, !manual && b.precision_m ? Math.round(Number(b.precision_m)) : null, manual ? 'Manual' : 'GPS',
         personas ? 1 : 0, personas ? String(b.riesgo_detalle || 'Sí · indicado por el ciudadano').slice(0, 150) : 'No',
         tri.prioridad, String(b.reportante || '').slice(0, 120) || null, String(b.telefono || '').slice(0, 30) || null,
         tri.ia_tipo, tri.ia_confianza, tri.ia_nota, tri.duplicados, tri.alerta_id, tri.evento_id]
@@ -60,7 +61,10 @@ r.post('/reportes', envioLimiter, folder('reportes'), uploadPhotos, async (req, 
   });
 
   await audit({ usuario: 'app-ciudadana', operacion: 'RECIBIR_REPORTE', objeto: `${codigo} · app ciudadana`, ip: clientIp(req), detalle: { prioridad: tri.prioridad } });
-  emit('reporte:nuevo', { id, codigo, prioridad: tri.prioridad, titulo: t.label }, 'perm:ciudadanos.ver');
+  emit('reporte:nuevo', {
+    id, codigo, prioridad: tri.prioridad, titulo: t.label, icono: t.icon, lugar: String(b.lugar || '').slice(0, 150) || null,
+    departamento: tri.departamento, personas_riesgo: personas
+  }, 'perm:ciudadanos.ver');
   res.status(201).json({ codigo, token, prioridad: tri.prioridad, mensaje: 'Reporte recibido por el COEN' });
 });
 

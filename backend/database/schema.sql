@@ -8,7 +8,7 @@ CREATE DATABASE IF NOT EXISTS sadeia_db CHARACTER SET utf8mb4 COLLATE utf8mb4_un
 USE sadeia_db;
 
 SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS informe_foto, informe_sitio, despacho, reporte_foto, reporte_ciudadano, equipo,
+DROP TABLE IF EXISTS usuario_especialidad, especialidad, equipamiento, vehiculo, informe_foto, informe_sitio, despacho, reporte_foto, reporte_ciudadano, equipo,
   asignacion_recurso, recurso, tarea_avance, tarea, recomendacion, evento,
   alerta_notificacion, alerta, prediccion, modelo_version, modelo_ia,
   lectura_descartada, lectura, fuente_datos, variable, umbral, amenaza_institucion, amenaza,
@@ -35,6 +35,12 @@ CREATE TABLE institucion (
   tipo         ENUM('Nacional','Departamental','Municipal','Técnica','Primera respuesta','Otra') NOT NULL DEFAULT 'Otra',
   departamento VARCHAR(40)  NULL,
   icono        VARCHAR(40)  NOT NULL DEFAULT 'apartment',
+  sede         VARCHAR(150) NULL COMMENT 'Lugar, sede o compañía donde se encuentra',
+  municipio    VARCHAR(80)  NULL,
+  telefono     VARCHAR(30)  NULL,
+  lat          DECIMAL(9,6) NULL,
+  lng          DECIMAL(9,6) NULL,
+  radio_km     INT NOT NULL DEFAULT 50 COMMENT 'Radio de jurisdicción: emergencias cercanas que ve la institución',
   webhook_url  VARCHAR(255) NULL COMMENT 'Canal externo opcional de notificación',
   activa       TINYINT(1)   NOT NULL DEFAULT 1
 ) ENGINE=InnoDB;
@@ -395,6 +401,59 @@ CREATE TABLE equipo (
 
 ALTER TABLE usuario ADD CONSTRAINT fk_usuario_equipo FOREIGN KEY (equipo_id) REFERENCES equipo(id);
 
+-- Recursos propios de cada institución de primera respuesta (los registra la misma institución)
+CREATE TABLE vehiculo (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  institucion_id INT NOT NULL,
+  codigo         VARCHAR(20)  NOT NULL COMMENT 'Código interno o número de unidad',
+  placa          VARCHAR(20)  NULL,
+  tipo           VARCHAR(40)  NOT NULL,
+  marca_modelo   VARCHAR(80)  NULL,
+  anio           SMALLINT     NULL,
+  capacidad      VARCHAR(80)  NULL,
+  estado         ENUM('Operativo','En mantenimiento','Fuera de servicio') NOT NULL DEFAULT 'Operativo',
+  equipo_id      INT NULL COMMENT 'Unidad de respuesta a la que está asignado',
+  observacion    VARCHAR(255) NULL,
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_vehiculo_codigo (institucion_id, codigo),
+  FOREIGN KEY (institucion_id) REFERENCES institucion(id),
+  FOREIGN KEY (equipo_id) REFERENCES equipo(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE equipamiento (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  institucion_id INT NOT NULL,
+  nombre         VARCHAR(100) NOT NULL,
+  categoria      VARCHAR(40)  NOT NULL,
+  cantidad       INT NOT NULL DEFAULT 1,
+  unidad         VARCHAR(30)  NOT NULL DEFAULT 'unidades',
+  estado         ENUM('Operativo','En mantenimiento','De baja') NOT NULL DEFAULT 'Operativo',
+  vehiculo_id    INT NULL COMMENT 'Vehículo donde se transporta',
+  observacion    VARCHAR(255) NULL,
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (institucion_id) REFERENCES institucion(id),
+  FOREIGN KEY (vehiculo_id) REFERENCES vehiculo(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE especialidad (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  institucion_id INT NOT NULL,
+  nombre         VARCHAR(80)  NOT NULL,
+  descripcion    VARCHAR(255) NULL,
+  icono          VARCHAR(40)  NOT NULL DEFAULT 'workspace_premium',
+  UNIQUE KEY uq_especialidad (institucion_id, nombre),
+  FOREIGN KEY (institucion_id) REFERENCES institucion(id)
+) ENGINE=InnoDB;
+
+-- Especialidades del personal (M:N usuario ↔ especialidad)
+CREATE TABLE usuario_especialidad (
+  usuario_id      INT NOT NULL,
+  especialidad_id INT NOT NULL,
+  PRIMARY KEY (usuario_id, especialidad_id),
+  FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON DELETE CASCADE,
+  FOREIGN KEY (especialidad_id) REFERENCES especialidad(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE reporte_ciudadano (
   id              INT AUTO_INCREMENT PRIMARY KEY,
   codigo          VARCHAR(20)  NOT NULL UNIQUE,
@@ -408,6 +467,7 @@ CREATE TABLE reporte_ciudadano (
   lat             DECIMAL(9,6) NOT NULL,
   lng             DECIMAL(9,6) NOT NULL,
   precision_m     INT NULL,
+  ubicacion_origen ENUM('GPS','Manual') NOT NULL DEFAULT 'GPS' COMMENT 'GPS del teléfono o punto marcado en el mapa',
   personas_riesgo TINYINT(1) NOT NULL DEFAULT 0,
   riesgo_detalle  VARCHAR(150) NULL,
   prioridad       ENUM('CRÍTICA','ALTA','MEDIA','BAJA') NOT NULL,

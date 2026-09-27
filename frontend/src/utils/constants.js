@@ -29,7 +29,21 @@ export const ST = {
   Entrenando: { bg: '#FEF3E7', fg: '#B85A0E' },
   Fallida: { bg: '#FDECEC', fg: '#C62828' },
   Aprobada: { bg: '#E4F4EA', fg: '#1E6B3E' },
-  Modificada: { bg: '#FEF3E7', fg: '#B85A0E' }
+  Modificada: { bg: '#FEF3E7', fg: '#B85A0E' },
+  // Despachos, unidades y recursos de primera respuesta
+  Despachado: { bg: '#FDECEC', fg: '#C62828' },
+  Aceptada: { bg: '#E3EFFA', fg: '#0F559C' },
+  'En sitio': { bg: '#FEF3E7', fg: '#B85A0E' },
+  Controlada: { bg: '#E4F4EA', fg: '#1E6B3E' },
+  Rechazada: { bg: '#EEF3F8', fg: '#4A5A6E' },
+  Disponible: { bg: '#E4F4EA', fg: '#1E6B3E' },
+  'En misión': { bg: '#FEF3E7', fg: '#B85A0E' },
+  'Fuera de servicio': { bg: '#EEF3F8', fg: '#4A5A6E' },
+  Operativo: { bg: '#E4F4EA', fg: '#1E6B3E' },
+  'En mantenimiento': { bg: '#FEF3E7', fg: '#B85A0E' },
+  'De baja': { bg: '#EEF3F8', fg: '#4A5A6E' },
+  Activa: { bg: '#E4F4EA', fg: '#1E6B3E' },
+  Inactiva: { bg: '#EEF3F8', fg: '#4A5A6E' }
 };
 
 export const PR = {
@@ -50,14 +64,72 @@ export const NAV = [
     { to: '/ciudadanos', label: 'Reportes ciudadanos', icon: 'record_voice_over', perms: ['ciudadanos.ver'], badge: 'ciudadanos' },
     { to: '/coordinacion', label: 'Coordinación', icon: 'groups', perms: ['coordinacion.ver'], badge: 'coordinacion' }
   ] },
+  { label: 'PRIMERA RESPUESTA', items: [
+    { to: '/respuesta/emergencias', label: 'Emergencias despachadas', icon: 'e911_emergency', perms: ['respuesta.ver'], badge: 'respuesta' },
+    { to: '/respuesta/unidades', label: 'Unidades de respuesta', icon: 'emergency_share', perms: ['respuesta.ver'] },
+    { to: '/respuesta/usuarios', label: 'Personal', icon: 'badge', perms: ['respuesta.usuarios'] },
+    { to: '/respuesta/vehiculos', label: 'Vehículos de emergencia', icon: 'fire_truck', perms: ['respuesta.ver'] },
+    { to: '/respuesta/equipamiento', label: 'Equipamiento', icon: 'construction', perms: ['respuesta.ver'] },
+    { to: '/respuesta/especialidades', label: 'Especialidades', icon: 'workspace_premium', perms: ['respuesta.ver'] }
+  ] },
   { label: 'ANÁLISIS', items: [
     { to: '/fuentes', label: 'Fuentes de datos', icon: 'database', perms: ['fuentes.ver'] },
     { to: '/modelos', label: 'Modelos IA', icon: 'neurology', perms: ['modelos.ver'] },
     { to: '/reportes', label: 'Reportes', icon: 'monitoring', perms: ['reportes.ver'] }
   ] },
   { label: 'SISTEMA', items: [
-    { to: '/admin', label: 'Administración', icon: 'admin_panel_settings', perms: ['admin.usuarios', 'admin.roles', 'bitacora.ver'] }
+    { to: '/admin', label: 'Administración', icon: 'admin_panel_settings', perms: ['admin.usuarios', 'admin.roles', 'admin.instituciones', 'bitacora.ver'] }
   ] }
 ];
+
+/** Página de inicio según el rol: los equipos de primera respuesta llegan a sus emergencias. */
+export const homeFor = (can) => (can('respuesta.ver') && !can('alertas.ver') ? '/respuesta/emergencias' : '/tablero');
+
+export const TIPOS_INSTITUCION = ['Primera respuesta', 'Nacional', 'Departamental', 'Municipal', 'Técnica', 'Otra'];
+
+/** Íconos de institución (Material Symbols) agrupados por clase; se muestran en el mapa. */
+export const ICONOS_INSTITUCION = [
+  { icono: 'local_fire_department', label: 'Bomberos', tipo: 'Primera respuesta' },
+  { icono: 'fire_truck', label: 'Compañía de bomberos', tipo: 'Primera respuesta' },
+  { icono: 'health_and_safety', label: 'Búsqueda y rescate', tipo: 'Primera respuesta' },
+  { icono: 'emergency', label: 'Cruz Roja / socorro', tipo: 'Primera respuesta' },
+  { icono: 'ambulance', label: 'Ambulancias', tipo: 'Primera respuesta' },
+  { icono: 'local_hospital', label: 'Hospital / salud', tipo: 'Primera respuesta' },
+  { icono: 'local_police', label: 'Policía', tipo: 'Primera respuesta' },
+  { icono: 'scuba_diving', label: 'Rescate acuático', tipo: 'Primera respuesta' },
+  { icono: 'forest', label: 'Guardaparques / forestal', tipo: 'Primera respuesta' },
+  { icono: 'military_tech', label: 'Fuerzas Armadas', tipo: 'Nacional' },
+  { icono: 'shield', label: 'Defensa civil', tipo: 'Nacional' },
+  { icono: 'hub', label: 'Centro de operaciones', tipo: 'Nacional' },
+  { icono: 'account_balance', label: 'Gobernación', tipo: 'Departamental' },
+  { icono: 'location_city', label: 'Municipio', tipo: 'Municipal' },
+  { icono: 'engineering', label: 'Obras / brigada técnica', tipo: 'Municipal' },
+  { icono: 'thermostat', label: 'Meteorología', tipo: 'Técnica' },
+  { icono: 'earthquake', label: 'Sismología', tipo: 'Técnica' },
+  { icono: 'sailing', label: 'Hidrografía / naval', tipo: 'Técnica' },
+  { icono: 'satellite_alt', label: 'Satelital', tipo: 'Técnica' },
+  { icono: 'volunteer_activism', label: 'Voluntariado / ONG', tipo: 'Otra' },
+  { icono: 'factory', label: 'Empresa / industria', tipo: 'Otra' },
+  { icono: 'apartment', label: 'Otra institución', tipo: 'Otra' }
+];
+
+export const ICONOS_ESPECIALIDAD = [
+  { icono: 'local_fire_department', label: 'Incendios' },
+  { icono: 'pool', label: 'Acuático' },
+  { icono: 'flood', label: 'Inundaciones' },
+  { icono: 'landslide', label: 'Deslizamientos' },
+  { icono: 'science', label: 'Mat. peligrosos' },
+  { icono: 'medical_services', label: 'Prehospitalaria' },
+  { icono: 'hiking', label: 'Montaña / altura' },
+  { icono: 'car_crash', label: 'Vehicular' },
+  { icono: 'domain_disabled', label: 'Estructuras colapsadas' },
+  { icono: 'pets', label: 'Canes / K9' },
+  { icono: 'cell_tower', label: 'Comunicaciones' },
+  { icono: 'workspace_premium', label: 'Otra' }
+];
+
+export const TIPOS_VEHICULO = ['Autobomba', 'Cisterna', 'Escalera mecánica', 'Ambulancia', 'Camioneta de rescate', 'Unidad de materiales peligrosos', 'Bote de rescate', 'Motocicleta', 'Camión de transporte', 'Helicóptero', 'Dron', 'Otro'];
+
+export const CATEGORIAS_EQUIPAMIENTO = ['Extinción', 'Rescate vehicular', 'Rescate en altura', 'Rescate acuático', 'Atención prehospitalaria', 'Protección personal', 'Materiales peligrosos', 'Comunicaciones', 'Iluminación y energía', 'Herramientas', 'Otro'];
 
 export const DEPARTAMENTOS = ['Beni', 'Chuquisaca', 'Cochabamba', 'La Paz', 'Oruro', 'Pando', 'Potosí', 'Santa Cruz', 'Tarija'];

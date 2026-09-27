@@ -48,6 +48,7 @@ npm run dev                   # API en http://localhost:4000/api
 ```
 
 > `db:init` solo crea el esquema; `db:seed` carga los datos demo; `db:reset` hace ambas cosas (¡borra todo!).
+> **Bases existentes:** para conservar los datos, aplique las migraciones de `backend/database/migrations/` en orden, p. ej. `mysql -u <usuario> -p sadeia_db < database/migrations/2026-09-27_primera_respuesta.sql` (instituciones con ubicación, rol *Equipo de primera respuesta*, vehículos, equipamiento y especialidades).
 > El usuario MySQL de `.env` necesita permiso `CREATE` y `TRIGGER` para `db:init`.
 
 Simulador de estaciones (opcional, en otra terminal) — envía lecturas como lo haría SENAMHI y el motor IA propone una alerta nueva en Riberalta:
@@ -85,9 +86,10 @@ Contraseña de todos: **`Sadeia2026!`**
 | `marce` | Decisor | VIDECI | Web: valida alertas, aprueba recomendaciones |
 | `jmamani` | Operador | COEN | Web: emite alertas, recibe reportes ciudadanos y despacha |
 | `arojas` | Analista técnico | SENAMHI | Web: fuentes, modelos IA, umbrales |
-| `dchoque` | Administrador | UTI | Web: todo, incluido usuarios, permisos y bitácora |
+| `dchoque` | Administrador | UTI | Web: todo, incluido instituciones (con su ubicación en el mapa), usuarios, permisos y bitácora |
 | `rsuarez` | Enlace | FF.AA. | **App móvil de enlace** (y web de coordinación) |
-| `lmendez` | Equipo de rescate | Policía · BR-03 | **App móvil de rescate** |
+| `lmendez` | Equipo de primera respuesta | Policía · unidad BR-03 | Web: emergencias en su jurisdicción, personal, unidades, vehículos, equipamiento y especialidades de **su** institución · **App móvil** de primera respuesta |
+| `mnoe` | Equipo de primera respuesta | Voluntarios SAR Beni · unidad SAR-B1 | Igual que el anterior, pero solo ve y gestiona lo de SAR Beni |
 | `pticona` | Analista (bloqueado) | SENAMHI | Demuestra el bloqueo de cuentas |
 
 Para producción desactive los accesos rápidos: `VITE_DEMO_LOGIN=false` (web) y `EXPO_PUBLIC_DEMO_LOGIN=false` (móvil), y **no** ejecute `db:seed`.
@@ -101,6 +103,8 @@ Para producción desactive los accesos rápidos: `VITE_DEMO_LOGIN=false` (web) y
 5. **Móvil (`rsuarez`) → Alertas:** *Confirmar recepción*. En **Tareas**, reporte avance (funciona sin señal: se encola y se envía al reconectar).
 6. **Web → Eventos:** apruebe o modifique cursos de acción → se generan tareas para cada institución.
 7. **Web → Reportes:** exporte el consolidado en PDF, XLSX o CSV. **Administración → Bitácora:** todo quedó registrado.
+8. **Web (`dchoque`) → Administración → Instituciones → Nueva institución:** elija tipo e ícono, ubíquela con clic en el mapa (o búsqueda de dirección / GPS) y defina su radio de jurisdicción. Opcionalmente se crean su primera unidad de respuesta y el usuario de su equipo de primera respuesta (contraseña temporal). La institución aparece de inmediato en el mapa del tablero y su unidad en los *equipos cercanos* del COEN.
+9. **Web (usuario de la nueva institución):** entra directo a *Emergencias despachadas*: ve las emergencias de su jurisdicción, recibe los despachos del COEN (aviso en tiempo real) y los acepta / marca llegada / situación controlada. En su menú registra personal, unidades, vehículos, equipamiento y especialidades; cada institución ve solo lo suyo.
 
 ## 3. Módulos y trazabilidad con la tesis
 
@@ -189,6 +193,11 @@ En producción use siempre HTTPS; `usesCleartextTraffic` está habilitado solo p
 | GET/POST | `/api/reportes-ciudadanos` · `/:id/despachar` · `/:id/vincular` · `/:id/falso` | `ciudadanos.*` |
 | GET/POST/PUT | `/api/misiones/actual` · `/:id/aceptar` · `/:id/rechazar` · `/:id/avanzar` · `/:id/informe` · `/ubicacion` | `rescate.misiones` |
 | GET/POST | `/api/publico/alertas` · `/api/publico/reportes` · `/api/publico/reportes/:codigo?token=` | público (con límite de tasa) |
+| GET/POST/PATCH | `/api/admin/instituciones` (ubicación, ícono, radio de jurisdicción; alta opcional de unidad y usuario) | `admin.instituciones` |
+| GET | `/api/respuesta/resumen` · `/emergencias` · `/emergencias/:id` (solo jurisdicción propia) | `respuesta.ver` |
+| POST | `/api/respuesta/despachos/:id/aceptar` · `/rechazar` · `/avanzar` (solo unidades propias) | `respuesta.atender` |
+| GET/POST/PATCH | `/api/respuesta/usuarios` · `/usuarios/:id/reset-password` (solo roles Primera respuesta / Enlace) | `respuesta.usuarios` |
+| GET/POST/PATCH/DELETE | `/api/respuesta/unidades` · `/vehiculos` · `/equipamiento` · `/especialidades` | `respuesta.recursos` |
 
 Ejemplo de ingesta desde una estación:
 

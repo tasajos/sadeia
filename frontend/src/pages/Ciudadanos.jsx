@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Icon from '../components/Icon';
 import { api } from '../api/client';
@@ -6,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { PageHead, PriorityBadge, StatusChip, Loading, Empty } from '../components/ui';
 import { ReportMap } from '../components/MapView';
+import PhotoViewer from '../components/PhotoViewer';
 import { PR } from '../utils/constants';
 import { dec, fTime, fDateTime } from '../utils/format';
 
@@ -18,6 +20,7 @@ export default function Ciudadanos() {
   const { data: rep, reload } = useApi(selId ? `/reportes-ciudadanos/${selId}` : null, EV);
   const { can } = useAuth();
   const toast = useToast();
+  const [visor, setVisor] = useState(null);
   const { busy, run } = useAction(toast);
   const canAct = can('ciudadanos.gestionar');
 
@@ -65,10 +68,11 @@ export default function Ciudadanos() {
                 <div className="photos">
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="photo">
-                      {rep.fotos[i] ? <a href={rep.fotos[i]} target="_blank" rel="noreferrer" style={{ width: '100%', height: '100%' }}><img src={rep.fotos[i]} alt={`Foto ${i + 1} del ciudadano`} /></a> : 'Sin foto'}
+                      {rep.fotos[i] ? <button type="button" className="photo-btn" onClick={() => setVisor(i)} aria-label={`Ampliar foto ${i + 1}`}><img src={rep.fotos[i]} alt={`Foto ${i + 1} del ciudadano`} /></button> : 'Sin foto'}
                     </div>
                   ))}
                 </div>
+                {visor !== null && <PhotoViewer fotos={rep.fotos} index={visor} titulo={rep.titulo} subtitulo={rep.codigo} onClose={() => setVisor(null)} />}
                 <div className="auto-col" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
                   <div className="stack facts" style={{ gap: 10 }}>
                     <div><span>Reportado por</span><span>{rep.reportante}</span></div>
@@ -97,7 +101,7 @@ export default function Ciudadanos() {
                 <div className="stack" style={{ gap: 10 }}>
                   <div className="sb" style={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
                     <b style={{ fontSize: 16 }}>Ubicación y equipos cercanos</b>
-                    <span className="mono muted" style={{ fontSize: 12 }}>{Number(rep.lat).toFixed(4)}, {Number(rep.lng).toFixed(4)}{rep.precision_m ? ` · ± ${rep.precision_m} m` : ''}</span>
+                    <span className="mono muted" style={{ fontSize: 12 }}>{Number(rep.lat).toFixed(4)}, {Number(rep.lng).toFixed(4)}{rep.ubicacion_origen === 'Manual' ? ' · marcada en el mapa' : rep.precision_m ? ` · GPS ± ${rep.precision_m} m` : ''}</span>
                   </div>
                   <ReportMap point={rep} teams={rep.equipos} />
                 </div>
