@@ -1,0 +1,82 @@
+{
+  "expo": {
+    "name": "SADE-IA",
+    "slug": "sade-ia",
+    "version": "1.0.0",
+    "scheme": "sadeia",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.chakuy.sadeia",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location"
+        ],
+        "NSLocationWhenInUseUsageDescription": "SADE-IA usa su ubicación para enviar reportes de emergencia y guiar a los equipos de primera respuesta."
+      }
+    },
+    "android": {
+      "package": "com.chakuy.sadeia",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B2545",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "VIBRATE"
+      ],
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SADE-IA usa su ubicación para enviar reportes de emergencia y guiar a los equipos de primera respuesta."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SADE-IA necesita acceso a sus fotos para adjuntarlas al reporte de emergencia.",
+          "cameraPermission": "SADE-IA necesita la cámara para fotografiar la emergencia."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/buho.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#0B2545"
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "apiUrl": "",
+      "router": {}
+    }
+  }
+}
