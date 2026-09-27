@@ -35,8 +35,9 @@ export const SQL_EVENTO = `
     LEFT JOIN usuario ur ON ur.id = e.registrado_por`;
 
 export const SQL_TAREA = `
-  SELECT t.*, i.sigla AS institucion_sigla, i.nombre AS institucion, e.codigo AS evento_codigo, e.titulo AS evento_titulo
-    FROM tarea t JOIN institucion i ON i.id = t.institucion_id JOIN evento e ON e.id = t.evento_id`;
+  SELECT t.*, i.sigla AS institucion_sigla, i.nombre AS institucion, e.codigo AS evento_codigo, e.titulo AS evento_titulo,
+         e.nivel AS evento_nivel, e.lugar AS evento_lugar, am.codigo AS amenaza_codigo, am.nombre AS amenaza, am.icono AS amenaza_icono
+    FROM tarea t JOIN institucion i ON i.id = t.institucion_id JOIN evento e ON e.id = t.evento_id JOIN amenaza am ON am.id = e.amenaza_id`;
 
 export const fotoUrl = (ruta) => (ruta?.startsWith('http') ? ruta : `${env.publicUrl}${ruta}`);
 

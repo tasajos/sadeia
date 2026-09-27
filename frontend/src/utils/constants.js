@@ -66,6 +66,7 @@ export const NAV = [
   ] },
   { label: 'PRIMERA RESPUESTA', items: [
     { to: '/respuesta/emergencias', label: 'Emergencias despachadas', icon: 'e911_emergency', perms: ['respuesta.ver'], badge: 'respuesta' },
+    { to: '/respuesta/tareas', label: 'Tareas asignadas', icon: 'assignment', perms: ['respuesta.ver'], badge: 'tareasPR' },
     { to: '/respuesta/unidades', label: 'Unidades de respuesta', icon: 'emergency_share', perms: ['respuesta.ver'] },
     { to: '/respuesta/usuarios', label: 'Personal', icon: 'badge', perms: ['respuesta.usuarios'] },
     { to: '/respuesta/vehiculos', label: 'Vehículos de emergencia', icon: 'fire_truck', perms: ['respuesta.ver'] },

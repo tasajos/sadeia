@@ -17,11 +17,16 @@ r.get('/contadores', async (req, res) => {
         ${req.user.permisos.includes('coordinacion.gestionar') ? '' : 'AND t.institucion_id = ' + Number(req.user.institucion_id)}`),
     q(`SELECT id, codigo, departamento FROM alerta WHERE nivel = 'roja' AND estado IN (?) ORDER BY created_at DESC`, [ALERTA_ABIERTA])
   ]);
-  const [pr] = req.user.permisos.includes('respuesta.ver')
-    ? await q(`SELECT COUNT(*) AS n FROM despacho d JOIN equipo e ON e.id = d.equipo_id WHERE d.estado = 'Despachado' AND e.institucion_id = ?`, [req.user.institucion_id])
-    : [{ n: 0 }];
+  const esPR = req.user.permisos.includes('respuesta.ver');
+  const [[pr], [tpr]] = esPR
+    ? await Promise.all([
+      q(`SELECT COUNT(*) AS n FROM despacho d JOIN equipo e ON e.id = d.equipo_id WHERE d.estado = 'Despachado' AND e.institucion_id = ?`, [req.user.institucion_id]),
+      // Tareas del COEN / VIDECI que la institución aún no termina
+      q(`SELECT COUNT(*) AS n FROM tarea t JOIN evento e ON e.id = t.evento_id WHERE e.estado = 'En curso' AND t.institucion_id = ? AND t.estado IN ('Pendiente','Vencida')`, [req.user.institucion_id])
+    ])
+    : [[{ n: 0 }], [{ n: 0 }]];
   res.json({
-    alertas: Number(a.n), ciudadanos: Number(c.n), coordinacion: Number(t.n), respuesta: Number(pr.n),
+    alertas: Number(a.n), ciudadanos: Number(c.n), coordinacion: Number(t.n), respuesta: Number(pr.n), tareasPR: Number(tpr.n),
     rojas: roja.length, alertaRoja: roja[0] || null
   });
 });

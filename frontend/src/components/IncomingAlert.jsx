@@ -22,6 +22,16 @@ function ficha(tipo, d, can) {
       accion: can('alertas.ver') && { label: tipo === 'alerta' ? 'Revisar y validar' : 'Ver alerta', icon: 'fact_check', to: `/alertas?sel=${d.id}` }
     };
   }
+  if (tipo === 'tarea') {
+    const lv = LV[d.nivel] || LV.amarilla;
+    return {
+      color: lv, icon: 'assignment_late', sonido: URGENTE(d.nivel) ? 'critica' : 'despacho',
+      kicker: `NUEVA TAREA PARA SU INSTITUCIÓN${d.origen ? ` · ASIGNADA POR ${String(d.origen).toUpperCase()}` : ''}`,
+      titulo: d.titulo || `Tarea ${d.codigo}`, lugar: [d.evento, d.evento_titulo].filter(Boolean).join(' · '),
+      meta: [d.codigo, d.plazo && `Plazo ${fTime(d.plazo)}`],
+      accion: can('respuesta.ver') && { label: 'Ver tarea', icon: 'assignment', to: `/respuesta/tareas${d.id ? `?sel=${d.id}` : ''}` }
+    };
+  }
   const pr = PR[d.prioridad] || PR.MEDIA;
   if (tipo === 'reporte') {
     return {
@@ -72,7 +82,8 @@ export default function IncomingAlert() {
       'alerta:nueva': (a) => push('alerta', a),
       'reporte:nuevo': (r) => push('reporte', r),
       'mision:nueva': (m) => (esRespuesta ? push('mision', m) : toast(`Nuevo despacho ${m.reporte} para ${m.equipo}: ${m.titulo} · prioridad ${m.prioridad}`)),
-      'alerta:recibida': (a) => (esRespuesta ? push('recibida', a) : toast(`Alerta ${a.codigo} recibida por su institución: ${a.amenaza} · ${a.lugar}`))
+      'alerta:recibida': (a) => (esRespuesta ? push('recibida', a) : toast(`Alerta ${a.codigo} recibida por su institución: ${a.amenaza} · ${a.lugar}`)),
+      'tarea:nueva': (t) => (can('respuesta.ver') ? push('tarea', t) : t.titulo && toast(`Nueva tarea ${t.codigo} para su institución: ${t.titulo}`))
     };
     Object.entries(h).forEach(([ev, fn]) => s.on(ev, fn));
     return () => Object.entries(h).forEach(([ev, fn]) => s.off(ev, fn));

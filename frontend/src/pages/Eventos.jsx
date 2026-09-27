@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../components/Icon';
-import { api } from '../api/client';
+import { api, download } from '../api/client';
 import { useApi, useAction } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { PageHead, LevelBadge, Loading, Empty, Modal, StatusChip, Bar } from '../components/ui';
+import { useDialog } from '../context/DialogContext';
+import { PageHead, LevelBadge, Loading, Empty, Modal, StatusChip, Bar, Seg } from '../components/ui';
 import { EventMap, eventIcon } from '../components/MapView';
 import { UbicacionField } from '../components/Pickers';
 import { NuevaTarea } from './Coordinacion';
@@ -18,6 +19,7 @@ const DEC = {
   Modificada: ['#FEF3E7', '#B85A0E', 'edit', 'Original y versión modificada conservadas'],
   Descartada: ['#EEF3F8', '#4A5A6E', 'block', 'Registrada en bitácora']
 };
+const MOV_ICON = { unidad: 'emergency_share', vehiculo: 'fire_truck', equipamiento: 'construction', personal: 'badge', material: 'inventory_2' };
 const TAREA_COLOR = { Completada: 'var(--verde)', Vencida: 'var(--roja)', 'En curso': 'var(--azul-600)', Pendiente: 'var(--naranja-600)' };
 const HINT_MAPA = 'Busque el lugar, haga clic en el mapa o arrastre el marcador hasta el punto del evento.';
 
@@ -182,12 +184,14 @@ function RutaGestion({ ev, can, acciones }) {
     { t: 'Decidir cursos de acción', d: recs.length ? `${recs.length - pend} de ${recs.length} decididos` : 'Sin cursos de acción', ok: recs.length > 0 && pend === 0 },
     { t: 'Tareas en ejecución', d: tareas.length ? `${hechas} de ${tareas.length} completadas · ${avance} %` : 'Aún sin tareas', ok: tareas.length > 0 && hechas === tareas.length, warn: vencidas > 0 && `${vencidas} vencida(s)` },
     { t: 'Recursos comprometidos', d: recAsig ? `${recAsig} asignación(es)` : 'Ninguno aún', ok: recAsig > 0, opcional: true },
-    { t: 'Cierre del evento', d: 'Libera los recursos', ok: false }
+    { t: 'Cierre del evento', d: ev.estado === 'Cerrado' ? `Cerrado ${fShort(ev.fecha_cierre)}` : 'Libera recursos y genera el informe', ok: ev.estado === 'Cerrado' }
   ];
   const actual = pasos.findIndex((p) => !p.ok && !p.opcional);
 
   let sig;
-  if (ev.ubicacion_aprox && can('eventos.gestionar')) {
+  if (ev.estado === 'Cerrado') {
+    sig = { icon: 'lock', tone: 'ok', txt: `Evento cerrado el ${fShort(ev.fecha_cierre)}. El informe de cierre en PDF reúne todas las tareas, decisiones y acciones realizadas.`, btn: ['Informe de cierre', 'picture_as_pdf', acciones.informe] };
+  } else if (ev.ubicacion_aprox && can('eventos.gestionar')) {
     sig = { icon: 'wrong_location', tone: 'warn', txt: 'El evento está ubicado de forma aproximada en el centro del departamento. Marque el punto exacto para ubicarlo en los mapas y vincular reportes cercanos.', btn: ['Marcar ubicación', 'edit_location_alt', acciones.editar] };
   } else if (!recs.length) {
     sig = { icon: 'lightbulb', txt: 'No hay cursos de acción. Recalcule las recomendaciones o proponga una acción.', btn: can('eventos.gestionar') && ['Proponer acción', 'add', acciones.proponer] };
@@ -233,12 +237,15 @@ function RutaGestion({ ev, can, acciones }) {
 export default function Eventos() {
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
-  const { data: list, loading, reload: reloadList } = useApi('/eventos', EV);
+  const [vista, setVista] = useState('curso');
+  const { data: todos, loading, reload: reloadList } = useApi(vista === 'curso' ? '/eventos' : '/eventos?estado=todos', EV);
+  const list = vista === 'curso' ? todos : todos?.filter((e) => e.estado === 'Cerrado');
   const selId = params.get('sel') || list?.[0]?.id;
   const { data: ev, reload } = useApi(selId ? `/eventos/${selId}` : null, EV);
   const { can } = useAuth();
   const toast = useToast();
   const { busy, run } = useAction(toast);
+  const { confirmar } = useDialog();
   const [modal, setModal] = useState(null); // 'nuevo' | 'editar' | 'accion' | 'tarea' | 'recursos'
   const [modif, setModif] = useState(null);
   const [texto, setTexto] = useState('');
@@ -247,8 +254,24 @@ export default function Eventos() {
     decision === 'aprobada' ? `Recomendación aprobada. Tarea ${r.tarea} generada y asignada a ${r.institucion}.`
       : decision === 'modificada' ? `Recomendación modificada. Tarea ${r.tarea} generada; se conserva la versión original.`
         : decision === 'descartada' ? 'Recomendación descartada y registrada en bitácora.' : 'Decisión revertida.').then(reload);
-  const cerrar = () => window.confirm(`¿Cerrar ${ev.codigo}? Se liberarán los recursos asignados.`)
-    && run(() => api.post(`/eventos/${ev.id}/cerrar`), `${ev.codigo} cerrado.`).then(() => { reloadList(); setParams({}); });
+  const informe = () => run(() => download(`/eventos/${ev.id}/informe`, null, `informe-${ev.codigo}.pdf`, 'get'), 'Informe PDF descargado.');
+  const cerrar = async () => {
+    const pendientes = ev.tareas.filter((t) => t.estado !== 'Completada').length;
+    const r = await confirmar({
+      titulo: `¿Cerrar ${ev.codigo}?`,
+      tono: 'peligro',
+      confirmar: 'Cerrar y generar informe',
+      mensaje: `Se liberarán los recursos asignados y los movilizados por las instituciones, y se generará el informe de cierre en PDF con todas las tareas y acciones realizadas.`,
+      detalle: pendientes ? `Atención: ${pendientes} tarea(s) no están completadas; quedarán registradas con su avance actual.` : undefined,
+      campo: { label: 'Observación de cierre', opcional: true, placeholder: 'Situación controlada; población retornó a sus viviendas…' }
+    });
+    if (!r) return;
+    const ok = await run(() => api.post(`/eventos/${ev.id}/cerrar`, { observacion: r.valor }), `${ev.codigo} cerrado. Descargando el informe de cierre…`);
+    if (!ok) return;
+    await run(() => download(`/eventos/${ev.id}/informe`, null, `informe-cierre-${ev.codigo}.pdf`, 'get'));
+    reload();
+    reloadList();
+  };
   const listo = () => { setModal(null); reload(); reloadList(); };
 
   const decisor = can('recomendaciones.decidir');
@@ -260,6 +283,7 @@ export default function Eventos() {
     proponer: () => setModal('accion'),
     tarea: () => setModal('tarea'),
     cerrar,
+    informe,
     coordinacion: () => nav('/coordinacion'),
     decidir: () => document.getElementById('cursos-accion')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   };
@@ -267,6 +291,7 @@ export default function Eventos() {
   return (
     <div className="page">
       <PageHead kicker="CU-05 · CU-06 · RF-08 · RF-09" title="Eventos y apoyo a la decisión">
+        <Seg value={vista} onChange={(v) => { setVista(v); setParams({}); }} options={[{ value: 'curso', label: 'En curso' }, { value: 'cerrados', label: 'Cerrados' }]} />
         {gestiona && <button className="btn sm outline" onClick={() => setModal('nuevo')}><Icon name="add" />Registrar evento</button>}
       </PageHead>
 
@@ -276,11 +301,11 @@ export default function Eventos() {
             <button key={e.id} className={`hazard-card ${String(e.id) === String(selId) ? 'on' : ''}`} onClick={() => setParams({ sel: e.id })}>
               <div className="sb"><span className="mono muted" style={{ fontSize: 12 }}>{e.codigo}</span><LevelBadge nivel={e.nivel} small /></div>
               <span style={{ fontSize: 16, fontWeight: 700 }}>{e.titulo}</span>
-              <span className="muted" style={{ fontSize: 13 }}>Desde {fShort(e.fecha_inicio)} · {e.impacto || 'impacto en evaluación'}</span>
+              <span className="muted" style={{ fontSize: 13 }}>{e.estado === 'Cerrado' ? `Cerrado ${fShort(e.fecha_cierre)}` : `Desde ${fShort(e.fecha_inicio)}`} · {e.impacto || 'impacto en evaluación'}</span>
               {e.ubicacion_aprox && <span className="evt-warn"><Icon name="wrong_location" size={14} />Ubicación aproximada</span>}
             </button>
           ))}
-          {!list?.length && <Empty icon="emergency_home" title="Sin eventos en curso" />}
+          {!list?.length && <Empty icon="emergency_home" title={vista === 'curso' ? 'Sin eventos en curso' : 'Sin eventos cerrados'} />}
         </div>
       )}
 
@@ -299,18 +324,18 @@ export default function Eventos() {
                   </div>
                 </div>
               </div>
-              {gestiona && (
-                <div className="row">
-                  <button className="btn xs outline" onClick={() => setModal('editar')}><Icon name="edit_note" size={18} />Actualizar situación</button>
-                  <button className="btn xs danger" disabled={busy} onClick={cerrar}>Cerrar evento</button>
-                </div>
-              )}
+              <div className="row">
+                <button className="btn xs outline" disabled={busy} onClick={informe} title={ev.estado === 'En curso' ? 'Informe de situación a la fecha' : 'Informe de cierre'}><Icon name="picture_as_pdf" size={18} />{ev.estado === 'En curso' ? 'Informe PDF' : 'Informe de cierre'}</button>
+                {gestiona && ev.estado === 'En curso' && <button className="btn xs outline" onClick={() => setModal('editar')}><Icon name="edit_note" size={18} />Actualizar situación</button>}
+                {gestiona && ev.estado === 'En curso' && <button className="btn xs danger" disabled={busy} onClick={cerrar}><Icon name="lock" size={18} />Cerrar evento</button>}
+              </div>
             </div>
             <div className="evt-facts">
               <div><span>Amenaza</span><b>{ev.amenaza}</b></div>
               <div><span>Inicio</span><b className="mono">{fShort(ev.fecha_inicio)}</b></div>
               <div><span>Impacto estimado</span><b>{ev.impacto || 'En evaluación'}</b></div>
               <div><span>Registrado por</span><b>{ev.registrado_por || '—'}</b></div>
+              {ev.estado === 'Cerrado' && <div><span>Cierre</span><b className="mono">{fShort(ev.fecha_cierre)}</b></div>}
             </div>
           </div>
 
@@ -327,7 +352,7 @@ export default function Eventos() {
             <div className="card">
               <div className="card-head" style={{ padding: '14px 20px' }}>
                 <b>Tareas del evento</b>
-                {can('coordinacion.gestionar') && (
+                {can('coordinacion.gestionar') && ev.estado === 'En curso' && (
                   <div className="row" style={{ gap: 6 }}>
                     <button className="btn xs outline" onClick={() => setModal('tarea')}><Icon name="assignment_add" size={18} />Tarea</button>
                     <button className="btn xs outline" onClick={() => setModal('recursos')}><Icon name="inventory_2" size={18} />Recursos</button>
@@ -343,6 +368,13 @@ export default function Eventos() {
                     </div>
                     <Bar pct={t.avance} color={TAREA_COLOR[t.estado]} thin />
                     <small className="muted"><span className="mono">{t.codigo}</span> · {t.sigla} · {t.avance} % · plazo {fShort(t.plazo)}</small>
+                    {t.movilizados?.some((x) => x.estado === 'Movilizado') && (
+                      <div className="row" style={{ gap: 4 }}>
+                        {t.movilizados.filter((x) => x.estado === 'Movilizado').map((x) => (
+                          <span key={x.id} className="chip soft" style={{ height: 22, fontSize: 11 }}><Icon name={MOV_ICON[x.tipo]} size={13} />{x.tipo === 'equipamiento' || x.tipo === 'material' ? `${x.cantidad} ${x.unidad || ''} ` : ''}{x.descripcion}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )) : <Empty icon="assignment" title="Sin tareas aún" text="Se generan al aprobar un curso de acción, o puede asignarlas directamente." />}
               </div>
@@ -365,8 +397,8 @@ export default function Eventos() {
               </div>
               <div className="row">
                 <span className="muted" style={{ fontSize: 13 }}>{nDec} de {recs.length} decididas</span>
-                {gestiona && <button className="btn xs outline" onClick={() => setModal('accion')}><Icon name="add" size={18} />Proponer acción</button>}
-                {gestiona && <button className="btn xs outline" disabled={busy} onClick={() => run(() => api.post(`/eventos/${ev.id}/recomendaciones/generar`), 'Recomendaciones pendientes recalculadas con la evidencia actual.').then(reload)}><Icon name="neurology" size={18} />Recalcular</button>}
+                {gestiona && ev.estado === 'En curso' && <button className="btn xs outline" onClick={() => setModal('accion')}><Icon name="add" size={18} />Proponer acción</button>}
+                {gestiona && ev.estado === 'En curso' && <button className="btn xs outline" disabled={busy} onClick={() => run(() => api.post(`/eventos/${ev.id}/recomendaciones/generar`), 'Recomendaciones pendientes recalculadas con la evidencia actual.').then(reload)}><Icon name="neurology" size={18} />Recalcular</button>}
               </div>
             </div>
             {ev.usa_protocolo && (
@@ -391,7 +423,7 @@ export default function Eventos() {
                     </div>
                   </div>
                   <div className="stack" style={{ alignItems: 'flex-end', gap: 6 }}>
-                    {r.estado === 'Pendiente' && decisor && (
+                    {r.estado === 'Pendiente' && decisor && ev.estado === 'En curso' && (
                       <div className="row" style={{ gap: 6 }}>
                         <button className="btn sm primary" disabled={busy} onClick={() => decidir(r, 'aprobada')}>Aprobar</button>
                         <button className="btn sm outline" disabled={busy} onClick={() => { setModif(r); setTexto(r.titulo); }}>Modificar</button>
@@ -403,7 +435,7 @@ export default function Eventos() {
                       <>
                         <div className="row">
                           <span className="chip" style={{ height: 28, background: d[0], color: d[1], fontSize: 13, fontWeight: 700 }}><Icon name={d[2]} />{r.estado}</span>
-                          {decisor && <button className="btn ghost" onClick={() => decidir(r, 'deshacer')}>Deshacer</button>}
+                          {decisor && ev.estado === 'En curso' && <button className="btn ghost" onClick={() => decidir(r, 'deshacer')}>Deshacer</button>}
                         </div>
                         <span className="muted" style={{ fontSize: 12 }}>{r.tarea_codigo ? `Tarea ${r.tarea_codigo} · ` : ''}{d[3]}</span>
                         {r.decidido_por_nombre && <span className="muted" style={{ fontSize: 12 }}>{r.decidido_por_nombre} · {fShort(r.fecha_decision)}</span>}

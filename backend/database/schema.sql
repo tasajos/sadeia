@@ -8,7 +8,7 @@ CREATE DATABASE IF NOT EXISTS sadeia_db CHARACTER SET utf8mb4 COLLATE utf8mb4_un
 USE sadeia_db;
 
 SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS usuario_especialidad, especialidad, equipamiento, vehiculo, informe_foto, informe_sitio, despacho, reporte_foto, reporte_ciudadano, equipo,
+DROP TABLE IF EXISTS tarea_recurso, usuario_especialidad, especialidad, equipamiento, vehiculo, informe_foto, informe_sitio, despacho, reporte_foto, reporte_ciudadano, equipo,
   asignacion_recurso, recurso, tarea_avance, tarea, recomendacion, evento,
   alerta_notificacion, alerta, prediccion, modelo_version, modelo_ia,
   lectura_descartada, lectura, fuente_datos, variable, umbral, amenaza_institucion, amenaza,
@@ -449,6 +449,24 @@ CREATE TABLE especialidad (
 ) ENGINE=InnoDB;
 
 -- Especialidades del personal (M:N usuario ↔ especialidad)
+-- Recursos que cada institución moviliza para cumplir una tarea (visibles para el COEN)
+CREATE TABLE tarea_recurso (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  tarea_id      INT NOT NULL,
+  tipo          ENUM('unidad','vehiculo','equipamiento','personal','material') NOT NULL,
+  ref_id        INT NULL COMMENT 'equipo / vehiculo / equipamiento / usuario según el tipo (NULL para material)',
+  descripcion   VARCHAR(150) NOT NULL COMMENT 'Etiqueta legible al momento de movilizar',
+  cantidad      INT NOT NULL DEFAULT 1,
+  unidad        VARCHAR(30) NULL,
+  estado        ENUM('Movilizado','Retornado') NOT NULL DEFAULT 'Movilizado',
+  usuario_id    INT NOT NULL,
+  fecha         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_retorno DATETIME NULL,
+  INDEX ix_tarea_recurso_ref (tipo, ref_id, estado),
+  FOREIGN KEY (tarea_id) REFERENCES tarea(id) ON DELETE CASCADE,
+  FOREIGN KEY (usuario_id) REFERENCES usuario(id)
+) ENGINE=InnoDB;
+
 CREATE TABLE usuario_especialidad (
   usuario_id      INT NOT NULL,
   especialidad_id INT NOT NULL,

@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { useApi, useAction } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useDialog } from '../context/DialogContext';
 import { PageHead, PriorityBadge, StatusChip, Loading, Empty } from '../components/ui';
 import { ReportMap } from '../components/MapView';
 import PhotoViewer from '../components/PhotoViewer';
@@ -20,6 +21,7 @@ export default function Ciudadanos() {
   const { data: rep, reload } = useApi(selId ? `/reportes-ciudadanos/${selId}` : null, EV);
   const { can } = useAuth();
   const toast = useToast();
+  const { confirmar } = useDialog();
   const [visor, setVisor] = useState(null);
   const { busy, run } = useAction(toast);
   const canAct = can('ciudadanos.gestionar');
@@ -27,7 +29,10 @@ export default function Ciudadanos() {
   const despachar = (t) => run(async () => (await api.post(`/reportes-ciudadanos/${rep.id}/despachar`, { equipo_id: t.id })).data,
     (r) => `${t.codigo} despachado a ${rep.codigo}. Llegada estimada en ${r.eta_min} min.`).then(reload);
   const vincular = () => run(() => api.post(`/reportes-ciudadanos/${rep.id}/vincular`), `${rep.codigo} vinculado a ${rep.evento_codigo}.`).then(reload);
-  const falso = () => window.confirm(`¿Marcar ${rep.codigo} como falso? Quedará registrado en bitácora.`) &&
+  const falso = async () => await confirmar({
+    titulo: `¿Marcar ${rep.codigo} como falso?`, tono: 'peligro', confirmar: 'Marcar como falso',
+    mensaje: 'El reporte se cerrará como falso o descartado y quedará registrado en la bitácora.'
+  }) &&
     run(() => api.post(`/reportes-ciudadanos/${rep.id}/falso`), `${rep.codigo} marcado como falso. Queda en bitácora.`).then(reload);
 
   const counts = [['Nuevo', '#C62828'], ['En revisión', '#E0741A'], ['Equipo despachado', '#1170B8']].map(([l, hex]) => ({ l, hex, n: (list || []).filter((r) => r.estado === l).length }));

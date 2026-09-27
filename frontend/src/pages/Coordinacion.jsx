@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../components/Icon';
 import { api } from '../api/client';
 import { useApi, useAction } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { PageHead, StatusChip, Loading, Empty, Modal, Seg, Bar } from '../components/ui';
+import { PageHead, StatusChip, Loading, Empty, Modal, Seg, Bar, LevelBadge } from '../components/ui';
+import { LV } from '../utils/constants';
 import { fShort, num } from '../utils/format';
 import PhotoViewer from '../components/PhotoViewer';
 
-const EV = ['tarea:actualizada', 'tarea:nueva', 'recurso:actualizado', 'evento:nuevo'];
+const EV = ['tarea:actualizada', 'tarea:nueva', 'recurso:actualizado', 'evento:nuevo', 'evento:actualizado'];
+const NIVEL_ORDEN = { roja: 0, naranja: 1, amarilla: 2, verde: 3 };
 
 function TareaModal({ id, onClose, onSaved }) {
   const { data: t } = useApi(`/coordinacion/tareas/${id}`);
@@ -51,6 +54,18 @@ function TareaModal({ id, onClose, onSaved }) {
           <label className="field"><span>Observación</span><textarea className="textarea" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="340 familias evacuadas a U.E. Cristo Rey…" /></label>
           <label className="field"><span>Foto (opcional)</span><input type="file" accept="image/*" onChange={(e) => setFoto(e.target.files[0])} /></label>
         </>
+      )}
+      {t.recursos?.length > 0 && (
+        <div className="stack">
+          <b>Recursos movilizados por {t.institucion_sigla}</b>
+          <div className="row" style={{ gap: 6 }}>
+            {t.recursos.map((x) => (
+              <span key={x.id} className="chip soft" style={{ opacity: x.estado === 'Retornado' ? 0.55 : 1 }}>
+                {x.tipo === 'equipamiento' || x.tipo === 'material' ? `${x.cantidad} ${x.unidad || ''} · ` : ''}{x.descripcion}{x.estado === 'Retornado' ? ' (retornado)' : ''}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
       <div className="stack">
         <b>Historial de avance</b>
@@ -118,8 +133,28 @@ export default function Coordinacion() {
   const [tarea, setTarea] = useState(null);
   const [nueva, setNueva] = useState(false);
   const [asignar, setAsignar] = useState(null);
+  const nav = useNavigate();
+  const [tipo, setTipo] = useState('todos');
+  const [plegados, setPlegados] = useState(() => new Set());
   const gestionar = can('coordinacion.gestionar');
   const c = data?.conteo || {};
+  const plegar = (id) => setPlegados((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  // Tipos de evento (amenaza) presentes en la vista, para filtrar
+  const tipos = Object.values((data?.tareas || []).reduce((m, t) => {
+    m[t.amenaza_codigo] ||= { codigo: t.amenaza_codigo, nombre: t.amenaza, icono: t.amenaza_icono, n: 0 };
+    m[t.amenaza_codigo].n++;
+    return m;
+  }, {})).sort((a, b) => b.n - a.n);
+  const tipoActivo = tipos.some((x) => x.codigo === tipo) ? tipo : 'todos';
+
+  // Un bloque por evento: los más graves y con más tareas vencidas primero
+  const grupos = Object.values((data?.tareas || []).filter((t) => tipoActivo === 'todos' || t.amenaza_codigo === tipoActivo).reduce((m, t) => {
+    m[t.evento_id] ||= { id: t.evento_id, codigo: t.evento_codigo, titulo: t.evento_titulo, nivel: t.evento_nivel, amenaza: t.amenaza, icono: t.amenaza_icono, tareas: [] };
+    m[t.evento_id].tareas.push(t);
+    return m;
+  }, {})).sort((a, b) => (NIVEL_ORDEN[a.nivel] - NIVEL_ORDEN[b.nivel])
+    || (b.tareas.filter((t) => t.estado === 'Vencida').length - a.tareas.filter((t) => t.estado === 'Vencida').length));
 
   return (
     <div className="page">
@@ -129,24 +164,64 @@ export default function Coordinacion() {
       </PageHead>
 
       <div className="two-col" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(280px,340px)', alignItems: 'start' }}>
-        <div className="card table-wrap">
-          {loading && !data ? <Loading /> : data?.tareas.length ? (
-            <table className="t">
-              <thead><tr><th>CÓDIGO</th><th>TAREA</th><th>INSTITUCIÓN</th><th>PLAZO</th><th>ESTADO</th><th style={{ width: 150 }}>AVANCE</th></tr></thead>
-              <tbody>
-                {data.tareas.map((t) => (
-                  <tr key={t.id} onClick={() => setTarea(t.id)} style={{ cursor: 'pointer' }}>
-                    <td className="mono muted" style={{ fontSize: 12 }}>{t.codigo}</td>
-                    <td><div className="stack" style={{ gap: 2 }}><span style={{ fontWeight: 600 }}>{t.titulo}</span><span className="muted" style={{ fontSize: 12 }}>{t.responsable || 'Sin responsable'} · {t.evento_codigo}</span></div></td>
-                    <td>{t.institucion}</td>
-                    <td className="mono" style={{ fontSize: 13, color: t.estado === 'Vencida' ? 'var(--roja)' : undefined }}>{fShort(t.plazo)}</td>
-                    <td><StatusChip estado={t.estado} /></td>
-                    <td><div className="row" style={{ flexWrap: 'nowrap' }}><div style={{ flex: 1 }}><Bar pct={t.avance} thin /></div><span className="mono" style={{ fontSize: 12, width: 36, textAlign: 'right' }}>{t.avance}%</span></div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <Empty icon="task" title="Sin tareas en esta vista" />}
+        <div className="stack" style={{ gap: 12, minWidth: 0 }}>
+          {tipos.length > 1 && (
+            <div className="tipo-filtro" role="radiogroup" aria-label="Tipo de evento">
+              <span className="muted">Tipo de evento</span>
+              {[{ codigo: 'todos', nombre: 'Todos', icono: 'apps', n: data.tareas.length }, ...tipos].map((x) => (
+                <button key={x.codigo} type="button" role="radio" aria-checked={tipoActivo === x.codigo} className={tipoActivo === x.codigo ? 'on' : ''} onClick={() => setTipo(x.codigo)}>
+                  <Icon name={x.icono} size={16} />{x.nombre}<b>{x.n}</b>
+                </button>
+              ))}
+            </div>
+          )}
+          {loading && !data ? <div className="card"><Loading /></div> : grupos.length ? grupos.map((g) => {
+            const cerrado = plegados.has(g.id);
+            const vencidas = g.tareas.filter((t) => t.estado === 'Vencida').length;
+            const prom = Math.round(g.tareas.reduce((s, t) => s + t.avance, 0) / g.tareas.length);
+            const lv = LV[g.nivel] || LV.verde;
+            return (
+              <div key={g.id} className="card evt-grupo" style={{ borderLeftColor: lv.bg }}>
+                <div className="evt-grupo-head">
+                  <button type="button" className="evt-grupo-toggle" onClick={() => plegar(g.id)} aria-expanded={!cerrado}>
+                    <span className="evt-grupo-ic" style={{ background: lv.bg, color: lv.fg }}><Icon name={g.icono || 'emergency_home'} size={22} /></span>
+                    <span className="stack" style={{ gap: 2, minWidth: 0, textAlign: 'left' }}>
+                      <span className="mono muted" style={{ fontSize: 11 }}>{g.amenaza.toUpperCase()} · {g.codigo}</span>
+                      <b style={{ fontSize: 16 }}>{g.titulo}</b>
+                    </span>
+                    <Icon name={cerrado ? 'expand_more' : 'expand_less'} color="var(--texto3)" />
+                  </button>
+                  <div className="row evt-grupo-stats">
+                    <LevelBadge nivel={g.nivel} small />
+                    <span className="muted">{g.tareas.length} tarea{g.tareas.length > 1 ? 's' : ''}</span>
+                    {vencidas > 0 && <span style={{ color: 'var(--roja)', fontWeight: 700 }}>{vencidas} vencida{vencidas > 1 ? 's' : ''}</span>}
+                    <span className="row" style={{ gap: 6, flexWrap: 'nowrap', width: 130 }}><span style={{ flex: 1 }}><Bar pct={prom} thin /></span><span className="mono" style={{ fontSize: 12 }}>{prom}%</span></span>
+                    {can('eventos.ver') && <button className="btn xs ghost" onClick={() => nav(`/eventos?sel=${g.id}`)}>Ver evento</button>}
+                  </div>
+                </div>
+                {!cerrado && (
+                  <div className="table-wrap">
+                    <table className="t" style={{ tableLayout: 'fixed' }}>
+                      <colgroup><col style={{ width: 72 }} /><col /><col style={{ width: '22%' }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} /><col style={{ width: 150 }} /></colgroup>
+                      <thead><tr><th>CÓDIGO</th><th>TAREA</th><th>INSTITUCIÓN</th><th>PLAZO</th><th>ESTADO</th><th>AVANCE</th></tr></thead>
+                      <tbody>
+                        {g.tareas.map((t) => (
+                          <tr key={t.id} onClick={() => setTarea(t.id)} style={{ cursor: 'pointer' }}>
+                            <td className="mono muted" style={{ fontSize: 12 }}>{t.codigo}</td>
+                            <td><div className="stack" style={{ gap: 2 }}><span style={{ fontWeight: 600 }}>{t.titulo}</span><span className="muted" style={{ fontSize: 12 }}>{t.responsable || 'Sin responsable'}</span></div></td>
+                            <td>{t.institucion}</td>
+                            <td className="mono" style={{ fontSize: 13, color: t.estado === 'Vencida' ? 'var(--roja)' : undefined }}>{fShort(t.plazo)}</td>
+                            <td><StatusChip estado={t.estado} /></td>
+                            <td><div className="row" style={{ flexWrap: 'nowrap' }}><div style={{ flex: 1 }}><Bar pct={t.avance} thin /></div><span className="mono" style={{ fontSize: 12, width: 36, textAlign: 'right' }}>{t.avance}%</span></div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          }) : <div className="card"><Empty icon="task" title="Sin tareas en esta vista" /></div>}
         </div>
 
         <div className="card">

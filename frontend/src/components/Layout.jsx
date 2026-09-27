@@ -57,7 +57,7 @@ export default function Layout() {
   const [pw, setPw] = useState(false);
   const loc = useLocation();
   const nav = useNavigate();
-  const { data: cnt } = useApi('/tablero/contadores', ['alerta:nueva', 'alerta:actualizada', 'reporte:nuevo', 'reporte:actualizado', 'tarea:actualizada', 'mision:nueva', 'despacho:actualizado']);
+  const { data: cnt } = useApi('/tablero/contadores', ['alerta:nueva', 'alerta:actualizada', 'reporte:nuevo', 'reporte:actualizado', 'tarea:actualizada', 'tarea:nueva', 'mision:nueva', 'despacho:actualizado']);
 
   useEffect(() => setOpen(false), [loc.pathname]);
 

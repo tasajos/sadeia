@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useApi, useAction } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useDialog } from '../context/DialogContext';
 import { PageHead, Loading, Modal, Seg, StatusChip } from '../components/ui';
 import { IconPicker, UbicacionField, TempPasswordModal } from '../components/Pickers';
 import { instIcon } from '../components/MapView';
@@ -117,8 +118,12 @@ function Instituciones() {
   const { run } = useAction(toast);
   const [edit, setEdit] = useState(undefined);
   const [filtro, setFiltro] = useState('');
+  const { confirmar } = useDialog();
   if (!data) return <Loading />;
-  const toggle = (i) => (!i.activa || window.confirm(`¿Desactivar ${i.sigla}? Sus usuarios no podrán ingresar y sus unidades dejarán de recibir despachos.`)) &&
+  const toggle = async (i) => (!i.activa || await confirmar({
+    titulo: `¿Desactivar ${i.sigla}?`, tono: 'peligro', confirmar: 'Desactivar',
+    mensaje: 'Sus usuarios no podrán ingresar y sus unidades dejarán de recibir despachos.'
+  })) &&
     run(() => api.patch(`/admin/instituciones/${i.id}`, { activa: !i.activa }), `${i.sigla} ${i.activa ? 'desactivada' : 'activada'}.`).then(reload);
   const t = filtro.trim().toLowerCase();
   const filas = data.filter((i) => !t || `${i.sigla} ${i.nombre} ${i.tipo} ${i.departamento || ''} ${i.municipio || ''}`.toLowerCase().includes(t));

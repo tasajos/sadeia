@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -26,15 +27,32 @@ const CAPAS = [
 const CAPA_KEY = 'sadeia.mapa.capa';
 const leerCapa = () => { try { return localStorage.getItem(CAPA_KEY) || 'mapa'; } catch { return 'mapa'; } };
 
+/**
+ * Control nativo de Leaflet (esquina superior derecha) cuyo contenido pinta React mediante un portal.
+ * Leaflet lo agrega y lo quita del mapa: no queda duplicado aunque React monte el componente dos veces.
+ */
+function MapControl({ className, label, children }) {
+  const map = useMap();
+  const [box] = useState(() => {
+    const d = L.DomUtil.create('div', `leaflet-control ${className}`);
+    d.setAttribute('role', 'radiogroup');
+    d.setAttribute('aria-label', label);
+    L.DomEvent.disableClickPropagation(d);
+    L.DomEvent.disableScrollPropagation(d);
+    return d;
+  });
+  useEffect(() => {
+    const Ctl = L.Control.extend({ onAdd: () => box, onRemove: () => {} });
+    const ctl = new Ctl({ position: 'topright' });
+    ctl.addTo(map);
+    return () => { ctl.remove(); };
+  }, [map, box]);
+  return createPortal(children, box);
+}
+
 /** Capa base con selector Mapa / Satélite / Híbrido (la elección se recuerda para todos los mapas). */
 function BaseLayers() {
   const [capa, setCapa] = useState(leerCapa);
-  const box = useRef(null);
-  useEffect(() => {
-    if (!box.current) return;
-    L.DomEvent.disableClickPropagation(box.current);
-    L.DomEvent.disableScrollPropagation(box.current);
-  }, []);
   const cambiar = (k) => { setCapa(k); try { localStorage.setItem(CAPA_KEY, k); } catch { /* sin almacenamiento */ } };
   return (
     <>
@@ -42,15 +60,13 @@ function BaseLayers() {
         ? <TileLayer key="mapa" url={TILE_URL} attribution={TILE_ATTR} maxZoom={19} maxNativeZoom={18} />
         : <TileLayer key="sat" url={SAT.url} attribution={SAT.attr} maxZoom={19} maxNativeZoom={18} />}
       {capa === 'hibrido' && REF.map((u) => <TileLayer key={u} url={u} maxZoom={19} maxNativeZoom={18} />)}
-      <div className="leaflet-top leaflet-right">
-        <div className="leaflet-control map-layers" ref={box} role="radiogroup" aria-label="Capa del mapa">
-          {CAPAS.map((c) => (
-            <button key={c.k} type="button" role="radio" aria-checked={capa === c.k} className={capa === c.k ? 'on' : ''} onClick={() => cambiar(c.k)} title={c.label}>
-              <Icon name={c.icon} size={16} /><span>{c.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <MapControl className="map-layers" label="Capa del mapa">
+        {CAPAS.map((c) => (
+          <button key={c.k} type="button" role="radio" aria-checked={capa === c.k} className={capa === c.k ? 'on' : ''} onClick={() => cambiar(c.k)} title={c.label}>
+            <Icon name={c.icon} size={16} /><span>{c.label}</span>
+          </button>
+        ))}
+      </MapControl>
     </>
   );
 }

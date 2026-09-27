@@ -9,6 +9,9 @@ import { crearUsuario, asignarEspecialidades, passwordTemporal } from '../servic
 import { distanceKm } from '../utils/geo.js';
 import { badRequest, conflict, forbidden, notFound, required } from '../utils/http.js';
 import { emit } from '../socket.js';
+import { SQL_EVENTO } from './serializers.js';
+import { uploadPhotos, folder } from '../middleware/upload.js';
+import { registrarAvance, recursosDeTareas } from '../services/taskService.js';
 
 /**
  * Módulo de la institución de primera respuesta. Todo se limita a la institución del usuario:
@@ -375,6 +378,131 @@ r.post('/usuarios/:id/reset-password', can('respuesta.usuarios'), async (req, re
   await pool.query('UPDATE usuario SET password_hash = ?, intentos_fallidos = 0, debe_cambiar_password = 1 WHERE id = ?', [await bcrypt.hash(temporal, 10), u.id]);
   await auditReq(req, 'RESTABLECER_CONTRASENA', `${u.username} · ${req.user.institucion}`);
   res.json({ password_temporal: temporal });
+});
+
+/* -------------- Tareas asignadas a la institución por el COEN / VIDECI (CU-08) -------------- */
+async function tareaPropia(req) {
+  const t = await one(
+    `SELECT t.*, e.codigo AS evento_codigo, e.titulo AS evento_titulo, e.estado AS evento_estado
+       FROM tarea t JOIN evento e ON e.id = t.evento_id WHERE t.id = ?`, [req.params.id]
+  );
+  if (!t || t.institucion_id !== req.user.institucion_id) throw notFound('Tarea no encontrada para su institución');
+  return t;
+}
+
+r.get('/tareas', can('respuesta.ver'), async (req, res) => {
+  const rows = await q(
+    `SELECT t.id, t.codigo, t.titulo, t.estado, t.avance, t.plazo, t.responsable, t.created_at, t.updated_at,
+            e.id AS evento_id, e.codigo AS evento_codigo, e.titulo AS evento_titulo, e.nivel, e.lugar, e.estado AS evento_estado, am.icono
+       FROM tarea t JOIN evento e ON e.id = t.evento_id JOIN amenaza am ON am.id = e.amenaza_id
+      WHERE t.institucion_id = ? AND (e.estado = 'En curso' OR t.updated_at >= NOW() - INTERVAL 7 DAY)
+      ORDER BY e.estado = 'Cerrado', FIELD(t.estado,'Vencida','Pendiente','En curso','Completada'), t.plazo`,
+    [req.user.institucion_id]
+  );
+  const rec = await recursosDeTareas(rows.map((x) => x.id));
+  res.json(rows.map((t) => ({ ...t, avance: Number(t.avance), recursos_movilizados: (rec[t.id] || []).filter((x) => x.estado === 'Movilizado').length })));
+});
+
+r.get('/tareas/:id', can('respuesta.ver'), async (req, res) => {
+  const t = await tareaPropia(req);
+  const inst = req.user.institucion_id;
+  const [ev, avances, rec, unidades, vehiculos, equipamiento, personal, mov] = await Promise.all([
+    one(`${SQL_EVENTO} WHERE e.id = ?`, [t.evento_id]),
+    q(`SELECT a.id, a.avance, a.observacion, a.foto, a.fecha, u.nombre AS usuario
+         FROM tarea_avance a JOIN usuario u ON u.id = a.usuario_id WHERE a.tarea_id = ? ORDER BY a.fecha DESC`, [t.id]),
+    recursosDeTareas([t.id]),
+    q('SELECT id, codigo, nombre, estado FROM equipo WHERE institucion_id = ? ORDER BY codigo', [inst]),
+    q('SELECT id, codigo, tipo, placa, estado FROM vehiculo WHERE institucion_id = ? ORDER BY codigo', [inst]),
+    q('SELECT id, nombre, categoria, cantidad, unidad, estado FROM equipamiento WHERE institucion_id = ? ORDER BY categoria, nombre', [inst]),
+    q("SELECT id, nombre FROM usuario WHERE institucion_id = ? AND estado = 'Activo' ORDER BY nombre", [inst]),
+    q(`SELECT tr.tipo, tr.ref_id, SUM(tr.cantidad) AS n, MIN(t2.codigo) AS tarea
+         FROM tarea_recurso tr JOIN tarea t2 ON t2.id = tr.tarea_id
+        WHERE tr.estado = 'Movilizado' AND t2.institucion_id = ? AND tr.ref_id IS NOT NULL GROUP BY tr.tipo, tr.ref_id`, [inst])
+  ]);
+  const usado = (tipo, id) => mov.find((m) => m.tipo === tipo && m.ref_id === id);
+  // Lo que la institución puede movilizar ahora (con el motivo si no está disponible)
+  const disponibles = {
+    unidad: unidades.map((u) => ({ id: u.id, label: `${u.codigo} · ${u.nombre}`, ocupado: usado('unidad', u.id)?.tarea || (u.estado !== 'Disponible' ? u.estado.toLowerCase() : null) })),
+    vehiculo: vehiculos.map((v) => ({ id: v.id, label: `${v.codigo} · ${v.tipo}${v.placa ? ` (${v.placa})` : ''}`, ocupado: usado('vehiculo', v.id)?.tarea || (v.estado !== 'Operativo' ? v.estado.toLowerCase() : null) })),
+    equipamiento: equipamiento.filter((x) => x.estado === 'Operativo').map((x) => {
+      const n = Number(usado('equipamiento', x.id)?.n || 0);
+      return { id: x.id, label: `${x.nombre} · ${x.categoria}`, unidad: x.unidad, total: x.cantidad, disponible: x.cantidad - n };
+    }),
+    personal: personal.map((p) => ({ id: p.id, label: p.nombre, ocupado: usado('personal', p.id)?.tarea || null }))
+  };
+  const evento = ev && {
+    id: ev.id, codigo: ev.codigo, titulo: ev.titulo, amenaza: ev.amenaza, icono: ev.icono, nivel: ev.nivel, estado: ev.estado, impacto: ev.impacto,
+    lugar: ev.lugar, departamento: ev.departamento, lat: ev.lat, lng: ev.lng, radio_km: ev.radio_km != null ? Number(ev.radio_km) : null, ubicacion_aprox: !!ev.ubicacion_aprox
+  };
+  res.json({ ...t, avance: Number(t.avance), evento, avances, recursos: rec[t.id] || [], disponibles });
+});
+
+r.post('/tareas/:id/avance', can('respuesta.atender'), folder('tareas'), uploadPhotos, async (req, res) => {
+  const t = await tareaPropia(req);
+  if (t.evento_estado === 'Cerrado') throw conflict('El evento ya fue cerrado');
+  res.json({ ok: true, ...(await registrarAvance(req, t)) });
+});
+
+const TABLA_RECURSO = { unidad: 'equipo', vehiculo: 'vehiculo', equipamiento: 'equipamiento', personal: 'usuario' };
+
+/** Movilizar un recurso propio (o material) a la tarea: queda visible para el COEN en el evento. */
+r.post('/tareas/:id/recursos', can('respuesta.atender'), async (req, res) => {
+  const t = await tareaPropia(req);
+  if (t.estado === 'Completada' || t.evento_estado === 'Cerrado') throw conflict('La tarea ya está cerrada');
+  const tipo = String(req.body.tipo || '');
+  if (!TABLA_RECURSO[tipo] && tipo !== 'material') throw badRequest('Tipo de recurso inválido');
+  let descripcion;
+  let cantidad = 1;
+  let unidad = null;
+  let refId = null;
+  if (tipo === 'material') {
+    descripcion = String(req.body.descripcion || '').trim().slice(0, 150);
+    if (!descripcion) throw badRequest('Describa el material');
+    cantidad = Math.max(1, Math.round(Number(req.body.cantidad) || 1));
+    unidad = String(req.body.unidad || '').trim().slice(0, 30) || null;
+  } else {
+    refId = Number(req.body.ref_id);
+    const x = await one(`SELECT * FROM ${TABLA_RECURSO[tipo]} WHERE id = ? AND institucion_id = ?`, [refId, req.user.institucion_id]);
+    if (!x) throw badRequest('El recurso no pertenece a su institución');
+    const activo = await one(
+      `SELECT COALESCE(SUM(tr.cantidad),0) AS n, MIN(t2.codigo) AS tarea FROM tarea_recurso tr JOIN tarea t2 ON t2.id = tr.tarea_id
+        WHERE tr.tipo = ? AND tr.ref_id = ? AND tr.estado = 'Movilizado'`, [tipo, refId]
+    );
+    if (tipo === 'equipamiento') {
+      if (x.estado !== 'Operativo') throw conflict(`${x.nombre} no está operativo`);
+      cantidad = Math.max(1, Math.round(Number(req.body.cantidad) || 1));
+      const disp = x.cantidad - Number(activo.n);
+      if (cantidad > disp) throw conflict(`Solo hay ${disp} ${x.unidad} disponibles de ${x.nombre}`);
+      descripcion = x.nombre;
+      unidad = x.unidad;
+    } else {
+      if (Number(activo.n)) throw conflict(`Ya está movilizado en la tarea ${activo.tarea}`);
+      if (tipo === 'vehiculo' && x.estado !== 'Operativo') throw conflict(`El vehículo ${x.codigo} está ${x.estado.toLowerCase()}`);
+      if (tipo === 'unidad' && x.estado === 'Fuera de servicio') throw conflict(`La unidad ${x.codigo} está fuera de servicio`);
+      descripcion = tipo === 'unidad' ? `${x.codigo} · ${x.nombre}` : tipo === 'vehiculo' ? `${x.codigo} · ${x.tipo}${x.placa ? ` (${x.placa})` : ''}` : x.nombre;
+    }
+  }
+  const [ins] = await pool.query(
+    'INSERT INTO tarea_recurso (tarea_id, tipo, ref_id, descripcion, cantidad, unidad, usuario_id) VALUES (?,?,?,?,?,?,?)',
+    [t.id, tipo, refId, descripcion, cantidad, unidad, req.user.id]
+  );
+  // Movilizar recursos significa que la institución ya está trabajando en la tarea
+  if (t.estado === 'Pendiente') await pool.query("UPDATE tarea SET estado = 'En curso' WHERE id = ?", [t.id]);
+  await auditReq(req, 'MOVILIZAR_RECURSO', `${t.codigo} · ${descripcion}`, { tipo, cantidad });
+  emit('tarea:actualizada', { codigo: t.codigo });
+  res.status(201).json({ id: ins.insertId });
+});
+
+r.post('/tareas/recursos/:rid/retornar', can('respuesta.atender'), async (req, res) => {
+  const x = await one(
+    'SELECT tr.*, t.codigo, t.institucion_id FROM tarea_recurso tr JOIN tarea t ON t.id = tr.tarea_id WHERE tr.id = ?', [req.params.rid]
+  );
+  if (!x || x.institucion_id !== req.user.institucion_id) throw notFound('Recurso no encontrado');
+  if (x.estado === 'Retornado') throw conflict('El recurso ya retornó');
+  await pool.query("UPDATE tarea_recurso SET estado = 'Retornado', fecha_retorno = NOW() WHERE id = ?", [x.id]);
+  await auditReq(req, 'RETORNAR_RECURSO', `${x.codigo} · ${x.descripcion}`);
+  emit('tarea:actualizada', { codigo: x.codigo });
+  res.json({ ok: true });
 });
 
 export default r;

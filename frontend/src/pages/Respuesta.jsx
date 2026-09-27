@@ -5,9 +5,11 @@ import { api } from '../api/client';
 import { useApi, useAction } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useDialog } from '../context/DialogContext';
 import { PageHead, PriorityBadge, StatusChip, Loading, Empty, Modal, Seg, Card } from '../components/ui';
 import { JurisdictionMap } from '../components/MapView';
 import PhotoViewer from '../components/PhotoViewer';
+import RespuestaTareas from './RespuestaTareas';
 import { IconPicker, UbicacionField, TempPasswordModal } from '../components/Pickers';
 import { PR, ICONOS_INSTITUCION, ICONOS_ESPECIALIDAD, TIPOS_VEHICULO, CATEGORIAS_EQUIPAMIENTO } from '../utils/constants';
 import { dec, fTime, fDateTime, lastAccess, initials, ago } from '../utils/format';
@@ -18,6 +20,7 @@ import { dec, fTime, fDateTime, lastAccess, initials, ago } from '../utils/forma
  */
 const TABS = {
   emergencias: { title: 'Emergencias despachadas', kicker: 'DESPACHOS EN SU JURISDICCIÓN' },
+  tareas: { title: 'Tareas asignadas', kicker: 'TAREAS DEL COEN Y VIDECI PARA SU INSTITUCIÓN' },
   unidades: { title: 'Unidades de respuesta', kicker: 'RECIBEN DESPACHOS DEL COEN' },
   usuarios: { title: 'Personal de la institución', kicker: 'USUARIOS Y ESPECIALIDADES' },
   vehiculos: { title: 'Vehículos de emergencia', kicker: 'PARQUE AUTOMOTOR' },
@@ -39,6 +42,7 @@ function DetalleEmergencia({ id, onChanged }) {
   const { data: e, reload } = useApi(id ? `/respuesta/emergencias/${id}` : null, EV_EMERG);
   const { can } = useAuth();
   const toast = useToast();
+  const { confirmar } = useDialog();
   const { busy, run } = useAction(toast);
   const [visor, setVisor] = useState(null);
   if (!id) return <Empty icon="e911_emergency" title="Seleccione una emergencia" text="Las emergencias despachadas a su institución aparecen primero." />;
@@ -72,7 +76,7 @@ function DetalleEmergencia({ id, onChanged }) {
                 <StatusChip estado={d.estado} />
                 {d.mio && atender && d.estado === 'Despachado' && <>
                   <button className="btn xs primary" disabled={busy} onClick={() => accion(d, 'aceptar', `Misión aceptada: ${d.equipo} en camino.`)}><Icon name="check" size={18} />Aceptar</button>
-                  <button className="btn xs danger" disabled={busy} onClick={() => window.confirm('¿Rechazar el despacho? El COEN deberá asignar otra unidad.') && accion(d, 'rechazar', 'Despacho rechazado.')}>Rechazar</button>
+                  <button className="btn xs danger" disabled={busy} onClick={async () => await confirmar({ titulo: '¿Rechazar el despacho?', tono: 'peligro', confirmar: 'Rechazar', mensaje: 'El COEN deberá asignar otra unidad a esta emergencia.' }) && accion(d, 'rechazar', 'Despacho rechazado.')}>Rechazar</button>
                 </>}
                 {d.mio && atender && SIGUIENTE[d.estado] && (
                   <button className="btn xs secondary" disabled={busy} onClick={() => accion(d, 'avanzar', `${d.equipo}: ${SIGUIENTE[d.estado].label.toLowerCase()}.`)}>
@@ -368,9 +372,10 @@ function Recursos({ cfg, reloadResumen }) {
   const toast = useToast();
   const { run } = useAction(toast);
   const [edit, setEdit] = useState(undefined);
+  const { confirmar } = useDialog();
   if (!data) return <Loading />;
   const editable = can('respuesta.recursos');
-  const eliminar = (x) => window.confirm(`¿Eliminar ${cfg.etiqueta(x)}? Quedará registrado en la bitácora.`) &&
+  const eliminar = async (x) => await confirmar({ titulo: `¿Eliminar ${cfg.etiqueta(x)}?`, tono: 'peligro', confirmar: 'Eliminar', mensaje: 'Esta acción quedará registrada en la bitácora.' }) &&
     run(() => api.delete(`/respuesta/${cfg.ruta}/${x.id}`), `${cfg.etiqueta(x)} eliminado.`).then(() => { reload(); reloadResumen(); });
   const guardado = () => { setEdit(undefined); reload(); reloadResumen(); };
   return (
@@ -477,6 +482,7 @@ export default function Respuesta() {
       {!res ? <Loading /> : (
         <>
           {tab === 'emergencias' && <Emergencias />}
+          {tab === 'tareas' && <RespuestaTareas />}
           {tab === 'unidades' && <Unidades resumen={res} />}
           {tab === 'usuarios' && <Usuarios resumen={res} reloadResumen={reload} />}
           {tab === 'vehiculos' && <Recursos key="v" cfg={cfgVehiculos(res)} reloadResumen={reload} />}

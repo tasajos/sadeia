@@ -8,6 +8,8 @@ import { NIVELES } from '../services/domain.js';
 import { badRequest, notFound, conflict, required } from '../utils/http.js';
 import { emit } from '../socket.js';
 import { DEPARTAMENTOS } from '../utils/geo.js';
+import { recursosDeTareas } from '../services/taskService.js';
+import { informeEvento, informeCierreGuardado } from '../services/eventReportService.js';
 
 const r = Router();
 
@@ -77,7 +79,8 @@ r.get('/:id', can('eventos.ver'), async (req, res) => {
       WHERE evento_id = ? AND estado <> 'Falso / descartado' ORDER BY created_at DESC LIMIT 100`,
     [e.id]
   );
-  res.json({ ...eventoDTO(e), recomendaciones: recs, recursos, tareas: tareas.map((t) => ({ ...t, avance: Number(t.avance) })), reportes });
+  const movilizados = await recursosDeTareas(tareas.map((t) => t.id));
+  res.json({ ...eventoDTO(e), recomendaciones: recs, recursos, tareas: tareas.map((t) => ({ ...t, avance: Number(t.avance), movilizados: movilizados[t.id] || [] })), reportes });
 });
 
 /** CU-05 · RF-08: registrar evento (tipología, ubicación, severidad, inicio). */
@@ -166,10 +169,28 @@ r.post('/:id/cerrar', can('eventos.gestionar'), async (req, res) => {
   await tx(async (c) => {
     await c.query("UPDATE evento SET estado = 'Cerrado', fecha_cierre = NOW() WHERE id = ?", [e.id]);
     await c.query("UPDATE asignacion_recurso SET estado = 'Liberado', fecha_liberacion = NOW() WHERE evento_id = ? AND estado = 'Asignado'", [e.id]);
+    // Los recursos que las instituciones movilizaron a sus tareas vuelven a estar disponibles
+    await c.query(
+      `UPDATE tarea_recurso tr JOIN tarea t ON t.id = tr.tarea_id SET tr.estado = 'Retornado', tr.fecha_retorno = NOW()
+        WHERE t.evento_id = ? AND tr.estado = 'Movilizado'`, [e.id]
+    );
   });
-  await auditReq(req, 'CERRAR_EVENTO', e.codigo);
+  const observacion = String(req.body?.observacion || '').trim().slice(0, 1000) || null;
+  await auditReq(req, 'CERRAR_EVENTO', e.codigo, observacion ? { observacion } : null);
   emit('evento:actualizado', { id: e.id });
-  res.json({ ok: true });
+  // Informe de cierre en PDF con todas las tareas y acciones (queda en "Reportes generados")
+  const inf = await informeEvento(e.id, req.user.username).catch((err) => { console.error('[informe]', err); return null; });
+  res.json({ ok: true, informe: inf?.archivo || null });
+});
+
+/** Informe del evento en PDF: el de cierre si el evento ya se cerró, o uno de situación si sigue en curso. */
+r.get('/:id/informe', can('eventos.ver'), async (req, res) => {
+  const e = await one('SELECT id, codigo, estado FROM evento WHERE id = ?', [req.params.id]);
+  if (!e) throw notFound();
+  const inf = (e.estado === 'Cerrado' && await informeCierreGuardado(e.codigo)) || await informeEvento(e.id, req.user.username);
+  await auditReq(req, 'DESCARGAR_INFORME', e.codigo);
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+  res.download(inf.file, inf.archivo);
 });
 
 /** CU-06: decisión humana sobre cada recomendación. Aprobar/modificar genera la tarea (CU-08). */
@@ -213,7 +234,8 @@ r.post('/recomendaciones/:id/decidir', can('recomendaciones.decidir'), async (re
   const op = { aprobada: 'APROBAR_RECOMENDACION', modificada: 'MODIFICAR_RECOMENDACION', descartada: 'DESCARTAR_RECOMENDACION' }[decision];
   await auditReq(req, op, obj, { tarea: tareaCodigo, justificacion: req.body.justificacion || null });
   if (tareaCodigo) {
-    emit('tarea:nueva', { codigo: tareaCodigo }, `inst:${rc.institucion_id}`);
+    const tn = await one('SELECT t.id, t.titulo, t.plazo, e.titulo AS evento_titulo, e.nivel FROM tarea t JOIN evento e ON e.id = t.evento_id WHERE t.codigo = ?', [tareaCodigo]);
+    emit('tarea:nueva', { id: tn.id, codigo: tareaCodigo, titulo: tn.titulo, plazo: tn.plazo, evento: rc.evento_codigo, evento_titulo: tn.evento_titulo, nivel: tn.nivel, origen: req.user.institucion }, `inst:${rc.institucion_id}`);
     emit('tarea:actualizada', { codigo: tareaCodigo });
   }
   res.json({ ok: true, tarea: tareaCodigo, institucion: rc.instituciones });

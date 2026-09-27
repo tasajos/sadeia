@@ -3,14 +3,16 @@ import { q, one, pool, nextCode } from '../config/db.js';
 import { can, hasPerm } from '../middleware/auth.js';
 import { SQL_TAREA } from './serializers.js';
 import { auditReq } from '../services/auditService.js';
-import { uploadPhotos, folder, publicPath } from '../middleware/upload.js';
+import { uploadPhotos, folder } from '../middleware/upload.js';
 import { badRequest, notFound, forbidden, required, conflict } from '../utils/http.js';
 import { emit } from '../socket.js';
+import { registrarAvance, recursosDeTareas } from '../services/taskService.js';
 
 const r = Router();
 
 const tareaDTO = (t) => ({
   id: t.id, codigo: t.codigo, titulo: t.titulo, evento_id: t.evento_id, evento_codigo: t.evento_codigo, evento_titulo: t.evento_titulo,
+  evento_nivel: t.evento_nivel, evento_lugar: t.evento_lugar, amenaza_codigo: t.amenaza_codigo, amenaza: t.amenaza, amenaza_icono: t.amenaza_icono,
   institucion_id: t.institucion_id, institucion: t.institucion, institucion_sigla: t.institucion_sigla, responsable: t.responsable,
   plazo: t.plazo, estado: t.estado, avance: t.avance, updated_at: t.updated_at
 });
@@ -46,18 +48,20 @@ r.get('/tareas/:id', can('coordinacion.ver', 'tareas.reportar'), async (req, res
     `SELECT a.*, u.nombre AS usuario FROM tarea_avance a JOIN usuario u ON u.id = a.usuario_id WHERE a.tarea_id = ? ORDER BY a.fecha DESC`,
     [t.id]
   );
-  res.json({ ...tareaDTO(t), avances });
+  const rec = await recursosDeTareas([t.id]);
+  res.json({ ...tareaDTO(t), avances, recursos: rec[t.id] || [] });
 });
 
 r.post('/tareas', can('coordinacion.gestionar'), async (req, res) => {
   required(req.body, ['evento_id', 'titulo', 'institucion_id', 'plazo']);
   const codigo = await nextCode('T', 3);
-  await pool.query(
+  const [ins] = await pool.query(
     'INSERT INTO tarea (codigo, evento_id, titulo, institucion_id, responsable, plazo) VALUES (?,?,?,?,?,?)',
     [codigo, req.body.evento_id, req.body.titulo, req.body.institucion_id, req.body.responsable || null, new Date(req.body.plazo)]
   );
   await auditReq(req, 'CREAR_TAREA', codigo);
-  emit('tarea:nueva', { codigo }, `inst:${req.body.institucion_id}`);
+  const ev = await one('SELECT codigo, titulo, nivel FROM evento WHERE id = ?', [req.body.evento_id]);
+  emit('tarea:nueva', { id: ins.insertId, codigo, titulo: req.body.titulo, plazo: new Date(req.body.plazo), evento: ev?.codigo, evento_titulo: ev?.titulo, nivel: ev?.nivel, origen: req.user.institucion }, `inst:${req.body.institucion_id}`);
   emit('tarea:actualizada', { codigo });
   res.status(201).json({ codigo });
 });
@@ -84,18 +88,7 @@ r.post('/tareas/:id/avance', can('tareas.reportar', 'coordinacion.gestionar'), f
   const t = await one('SELECT * FROM tarea WHERE id = ?', [req.params.id]);
   if (!t) throw notFound();
   if (!hasPerm(req.user, 'coordinacion.gestionar') && t.institucion_id !== req.user.institucion_id) throw forbidden('La tarea pertenece a otra institución');
-  const avance = Math.max(0, Math.min(100, Number(req.body.avance)));
-  if (Number.isNaN(avance)) throw badRequest('Avance inválido');
-  const foto = req.files?.[0] ? publicPath(req.files[0]) : null;
-  await pool.query(
-    'INSERT INTO tarea_avance (tarea_id, usuario_id, avance, observacion, foto, lat, lng, fecha) VALUES (?,?,?,?,?,?,?,?)',
-    [t.id, req.user.id, avance, req.body.observacion || null, foto, req.body.lat || null, req.body.lng || null, req.body.fecha ? new Date(req.body.fecha) : new Date()]
-  );
-  const estado = avance >= 100 ? 'Completada' : t.estado === 'Vencida' ? 'Vencida' : avance > 0 ? 'En curso' : 'Pendiente';
-  await pool.query('UPDATE tarea SET avance = ?, estado = ? WHERE id = ?', [avance, estado, t.id]);
-  await auditReq(req, 'ACTUALIZAR_TAREA', `${t.codigo} → ${avance} %`, { observacion: req.body.observacion });
-  emit('tarea:actualizada', { codigo: t.codigo, avance, estado });
-  res.json({ ok: true, estado, avance });
+  res.json({ ok: true, ...(await registrarAvance(req, t)) });
 });
 
 /* --------------------------- RECURSOS (RF-10) --------------------------- */
