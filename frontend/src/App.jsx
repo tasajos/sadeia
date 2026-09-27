@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import { PasswordObligatoria } from './components/CambiarPassword';
 import { Loading } from './components/ui';
 import { homeFor } from './utils/constants';
 
@@ -33,6 +34,7 @@ export default function App() {
       </Routes>
     );
   }
+  if (user.debe_cambiar_password) return <PasswordObligatoria />;
   return (
     <Suspense fallback={<Loading />}>
       <Routes>

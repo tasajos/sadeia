@@ -59,7 +59,7 @@ r.post('/usuarios/:id/reset-password', can('admin.usuarios'), async (req, res) =
   const u = await one('SELECT username FROM usuario WHERE id = ?', [req.params.id]);
   if (!u) throw notFound();
   const temporal = passwordTemporal();
-  await pool.query('UPDATE usuario SET password_hash = ?, intentos_fallidos = 0 WHERE id = ?', [await bcrypt.hash(temporal, 10), req.params.id]);
+  await pool.query('UPDATE usuario SET password_hash = ?, intentos_fallidos = 0, debe_cambiar_password = 1 WHERE id = ?', [await bcrypt.hash(temporal, 10), req.params.id]);
   await auditReq(req, 'RESTABLECER_CONTRASENA', u.username);
   res.json({ password_temporal: temporal });
 });

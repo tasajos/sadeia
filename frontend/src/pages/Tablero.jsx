@@ -29,8 +29,8 @@ export default function Tablero() {
       </div>
 
       <div className="two-col">
-        <Card title="Mapa de amenazas activas" actions={<small className="muted">9 departamentos · {data.instituciones?.length || 0} instituciones · Leaflet / OpenStreetMap</small>} style={{ overflow: 'hidden' }}>
-          <SituationMap points={data.mapa} instituciones={data.instituciones} onSelect={(p) => openAlert(p.id)} />
+        <Card title="Mapa de situación" actions={<small className="muted">{data.alertas.length} alertas · {data.eventos.length} eventos en curso · {data.instituciones?.length || 0} instituciones</small>} style={{ overflow: 'hidden' }}>
+          <SituationMap points={data.mapa} instituciones={data.instituciones} eventos={data.eventos} onSelect={(p) => openAlert(p.id)} onSelectEvento={(e) => openEvent(e.id)} />
         </Card>
         <Card title="Alertas activas" actions={can('alertas.ver') && <button className="btn ghost" onClick={() => nav('/alertas')}>Ver todas</button>}>
           <div style={{ overflow: 'auto', maxHeight: 480 }}>

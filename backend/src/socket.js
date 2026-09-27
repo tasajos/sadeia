@@ -29,7 +29,7 @@ export function initSocket(httpServer) {
     if (socket.data.userId) {
       const { loadProfile } = await import('./middleware/auth.js');
       const u = await loadProfile(socket.data.userId);
-      if (u && u.estado === 'Activo') {
+      if (u && u.estado === 'Activo' && !u.debe_cambiar_password) {
         socket.join(`user:${u.id}`);
         socket.join(`inst:${u.institucion_id}`);
         socket.join('staff');

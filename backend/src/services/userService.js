@@ -7,13 +7,14 @@ export const passwordTemporal = () => crypto.randomBytes(6).toString('base64url'
 
 /**
  * Crea un usuario. Si no se indica contraseña, genera una temporal y la devuelve
- * (se muestra una sola vez a quien lo creó).
+ * (se muestra una sola vez a quien lo creó). En ambos casos la contraseña la conoce otra persona:
+ * se exige cambiarla en el primer inicio de sesión.
  */
 export async function crearUsuario(data, conn = pool) {
   const temporal = data.password || passwordTemporal();
   if (temporal.length < 8) throw badRequest('La contraseña debe tener al menos 8 caracteres');
   const [ins] = await conn.query(
-    'INSERT INTO usuario (username, email, nombre, password_hash, rol_id, institucion_id, equipo_id, telefono) VALUES (?,?,?,?,?,?,?,?)',
+    'INSERT INTO usuario (username, email, nombre, password_hash, rol_id, institucion_id, equipo_id, telefono, debe_cambiar_password) VALUES (?,?,?,?,?,?,?,?,1)',
     [String(data.username).trim().toLowerCase(), String(data.email).trim().toLowerCase(), data.nombre, await bcrypt.hash(temporal, 10),
       data.rol_id, data.institucion_id, data.equipo_id || null, data.telefono || null]
   );

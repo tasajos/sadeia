@@ -30,8 +30,9 @@ export const alertaDTO = (a) => ({
 });
 
 export const SQL_EVENTO = `
-  SELECT e.*, am.nombre AS amenaza, am.icono, a.codigo AS alerta_codigo
-    FROM evento e JOIN amenaza am ON am.id = e.amenaza_id LEFT JOIN alerta a ON a.id = e.alerta_id`;
+  SELECT e.*, am.nombre AS amenaza, am.icono, a.codigo AS alerta_codigo, ur.nombre AS registrado_por_nombre
+    FROM evento e JOIN amenaza am ON am.id = e.amenaza_id LEFT JOIN alerta a ON a.id = e.alerta_id
+    LEFT JOIN usuario ur ON ur.id = e.registrado_por`;
 
 export const SQL_TAREA = `
   SELECT t.*, i.sigla AS institucion_sigla, i.nombre AS institucion, e.codigo AS evento_codigo, e.titulo AS evento_titulo

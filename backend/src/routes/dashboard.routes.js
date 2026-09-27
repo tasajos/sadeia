@@ -86,7 +86,11 @@ r.get('/', can('tablero.ver'), async (_req, res) => {
     ],
     alertaRoja: roja ? { id: roja.id, codigo: roja.codigo, lugar: roja.lugar, departamento: roja.departamento } : null,
     alertas: A,
-    eventos: eventos.map((e) => ({ id: e.id, codigo: e.codigo, titulo: e.titulo, nivel: e.nivel, fecha_inicio: e.fecha_inicio, impacto: e.impacto, icono: e.icono })),
+    eventos: eventos.map((e) => ({
+      id: e.id, codigo: e.codigo, titulo: e.titulo, nivel: e.nivel, fecha_inicio: e.fecha_inicio, impacto: e.impacto, icono: e.icono,
+      lugar: e.lugar, lat: e.lat != null ? Number(e.lat) : null, lng: e.lng != null ? Number(e.lng) : null,
+      radio_km: e.radio_km != null ? Number(e.radio_km) : null, ubicacion_aprox: !!e.ubicacion_aprox
+    })),
     avanceInstituciones: instAvance.map((i) => ({ ...i, total: Number(i.total), done: Number(i.done), pct: Number(i.pct) || 0 })),
     mapa,
     instituciones: instituciones.map((i) => ({ ...i, unidades_disponibles: Number(i.unidades_disponibles) })),

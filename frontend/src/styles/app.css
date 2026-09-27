@@ -337,3 +337,58 @@ table.t.mono-rows td { font-family: var(--mono); font-size: 13px; }
 }
 .link-btn { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: var(--azul-700); font-size: 13px; font-weight: 600; cursor: pointer; }
 .link-btn:hover { text-decoration: underline; }
+
+/* Selector de capa del mapa (Mapa / Satélite / Híbrido) */
+.map-layers { display: flex; gap: 2px; padding: 3px; margin: 10px 10px 0 0; background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(11, 37, 69, .22); }
+.map-layers button { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--texto2); font: 600 12px var(--sans); cursor: pointer; }
+.map-layers button:hover { background: var(--azul-50); color: var(--azul-700); }
+.map-layers button.on { background: var(--azul-900); color: #fff; }
+@media (max-width: 600px) { .map-layers button span { display: none; } .map-layers button { padding: 0 9px; } }
+
+/* Cambio de contraseña */
+.pw-meter { display: flex; align-items: center; gap: 10px; margin-top: -6px; }
+.pw-meter > div { flex: 1; height: 6px; border-radius: 99px; background: var(--fondo); overflow: hidden; }
+.pw-meter i { display: block; height: 100%; border-radius: 99px; transition: width .2s, background .2s; }
+.pw-meter small { font-size: 12px; font-weight: 700; min-width: 72px; text-align: right; }
+.pw-rules { list-style: none; margin: -4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--texto3); }
+.pw-rules li { display: flex; align-items: center; gap: 4px; }
+.pw-rules li.ok { color: var(--verde); font-weight: 600; }
+
+/* Pantalla obligatoria de cambio de contraseña (primer ingreso) */
+.pw-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: linear-gradient(160deg, var(--azul-950), var(--azul-800)); }
+.pw-card { width: min(520px, 100%); background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 28px 64px rgba(0, 0, 0, .35); }
+.pw-card-head { display: flex; align-items: center; gap: 14px; padding: 22px 24px; background: var(--azul-900); color: #fff; }
+.pw-card-head h1 { margin: 2px 0 0; font-size: 22px; font-weight: 800; }
+.pw-card-body { padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 18px; }
+
+/* Eventos: marcador en el mapa, ruta de gestión y detalle */
+.evt-marker { position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+.evt-marker::before { content: ''; position: absolute; inset: 4px; transform: rotate(45deg); border-radius: 6px; border: 2px solid #fff; box-shadow: 0 3px 10px rgba(11, 37, 69, .4); background: var(--evt, #E8661A); }
+.evt-marker .icon { position: relative; color: #fff; font-size: 16px; }
+.evt-marker.lg { width: 44px; height: 44px; }
+.evt-marker.lg .icon { font-size: 20px; }
+.evt-marker.lv-roja { --evt: #C62828; } .evt-marker.lv-naranja { --evt: #E8661A; } .evt-marker.lv-amarilla { --evt: #D4A418; } .evt-marker.lv-verde { --evt: #2E9E5B; }
+.evt-marker.lv-roja::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid #C62828; animation: ia-ring 1.8s ease-out infinite; }
+.evt-marker.aprox::before { border-style: dashed; opacity: .75; }
+.evt-legend { width: 10px; height: 10px; transform: rotate(45deg); border-radius: 2px; background: #E8661A; display: inline-block; margin: 0 2px; }
+.evt-warn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--naranja-700); }
+.evt-head-ic { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex: none; }
+.evt-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; padding: 14px 20px 18px; border-top: 1px solid var(--fondo); }
+.evt-facts span { display: block; font-size: 12px; color: var(--texto2); margin-bottom: 2px; }
+.evt-facts b { font-size: 14px; }
+.evt-steps { list-style: none; margin: 0; padding: 16px 20px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.evt-steps li { position: relative; display: flex; flex-direction: column; gap: 3px; padding-top: 38px; }
+.evt-steps li::before { content: ''; position: absolute; top: 14px; left: 30px; right: -12px; height: 2px; background: var(--borde); }
+.evt-steps li:last-child::before { display: none; }
+.evt-steps li.done::before { background: var(--verde); }
+.evt-steps b { font-size: 14px; } .evt-steps b small { font-weight: 400; color: var(--texto3); }
+.evt-steps small { font-size: 12px; color: var(--texto2); }
+.evt-dot { position: absolute; top: 0; left: 0; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 700 13px var(--mono); background: #fff; border: 2px solid var(--borde); color: var(--texto3); z-index: 1; }
+.evt-steps li.done .evt-dot { background: var(--verde); border-color: var(--verde); color: #fff; }
+.evt-steps li.now .evt-dot { background: var(--naranja-500); border-color: var(--naranja-500); color: var(--azul-900); box-shadow: 0 0 0 5px rgba(247, 147, 30, .2); }
+.evt-steps li.now b { color: var(--azul-900); }
+.evt-task { display: flex; flex-direction: column; gap: 6px; padding: 12px 20px; border-bottom: 1px solid var(--fondo); }
+.evt-cols { grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); }
+@media (max-width: 1100px) { .evt-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .evt-steps li::before { display: none; } .evt-cols { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .evt-steps { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .evt-marker.lv-roja::after { animation: none; } }

@@ -102,7 +102,7 @@ export function TempPasswordModal({ username, password, onClose, children }) {
   return (
     <Modal title="Acceso creado" onClose={onClose} footer={<button className="btn sm primary" onClick={onClose}>Listo</button>}>
       {children}
-      <div className="note warn"><Icon name="key" />Entregue estas credenciales por un canal seguro. La contraseña no se volverá a mostrar.</div>
+      <div className="note warn"><Icon name="key" />Entregue estas credenciales por un canal seguro. La contraseña no se volverá a mostrar y el usuario deberá cambiarla en su primer ingreso.</div>
       {username && <label className="field"><span>Usuario</span><input className="input mono" readOnly value={username} /></label>}
       <label className="field"><span>Contraseña temporal</span><input className="input mono" readOnly value={password} onFocus={(e) => e.target.select()} /></label>
     </Modal>

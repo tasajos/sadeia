@@ -32,9 +32,15 @@ export function AuthProvider({ children }) {
     return r.data.user;
   }, []);
 
+  // Tras cambiar una contraseña temporal: se habilita la sesión y se reconecta el tiempo real (salas por permiso).
+  const passwordCambiada = useCallback(() => {
+    setUser((u) => (u ? { ...u, debe_cambiar_password: false } : u));
+    connectSocket();
+  }, []);
+
   const can = useCallback((...perms) => !!user && perms.some((p) => user.permisos.includes(p)), [user]);
 
-  const value = useMemo(() => ({ user, ready, login, logout, can }), [user, ready, login, logout, can]);
+  const value = useMemo(() => ({ user, ready, login, logout, can, passwordCambiada }), [user, ready, login, logout, can, passwordCambiada]);
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }
 

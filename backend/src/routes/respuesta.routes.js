@@ -372,7 +372,7 @@ r.patch('/usuarios/:id', can('respuesta.usuarios'), async (req, res) => {
 r.post('/usuarios/:id/reset-password', can('respuesta.usuarios'), async (req, res) => {
   const u = await usuarioPropio(req);
   const temporal = passwordTemporal();
-  await pool.query('UPDATE usuario SET password_hash = ?, intentos_fallidos = 0 WHERE id = ?', [await bcrypt.hash(temporal, 10), u.id]);
+  await pool.query('UPDATE usuario SET password_hash = ?, intentos_fallidos = 0, debe_cambiar_password = 1 WHERE id = ?', [await bcrypt.hash(temporal, 10), u.id]);
   await auditReq(req, 'RESTABLECER_CONTRASENA', `${u.username} · ${req.user.institucion}`);
   res.json({ password_temporal: temporal });
 });

@@ -57,10 +57,14 @@ r.post('/logout', authenticate, async (req, res) => {
 
 r.put('/password', authenticate, async (req, res) => {
   required(req.body, ['actual', 'nueva']);
-  if (String(req.body.nueva).length < 8) throw badRequest('La nueva contraseña debe tener al menos 8 caracteres');
+  const nueva = String(req.body.nueva);
+  if (nueva.length < 8) throw badRequest('La nueva contraseña debe tener al menos 8 caracteres');
+  if (nueva.length > 72) throw badRequest('La nueva contraseña no puede superar los 72 caracteres');
+  if (!/[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(nueva) || !/\d/.test(nueva)) throw badRequest('La nueva contraseña debe combinar letras y números');
+  if (nueva === String(req.body.actual)) throw badRequest('La nueva contraseña debe ser distinta de la actual');
   const u = await one('SELECT password_hash FROM usuario WHERE id = ?', [req.user.id]);
-  if (!(await bcrypt.compare(req.body.actual, u.password_hash))) throw badRequest('La contraseña actual no es correcta');
-  await pool.query('UPDATE usuario SET password_hash = ? WHERE id = ?', [await bcrypt.hash(req.body.nueva, 10), req.user.id]);
+  if (!(await bcrypt.compare(String(req.body.actual), u.password_hash))) throw badRequest('La contraseña actual no es correcta');
+  await pool.query('UPDATE usuario SET password_hash = ?, debe_cambiar_password = 0 WHERE id = ?', [await bcrypt.hash(nueva, 10), req.user.id]);
   await auditReq(req, 'CAMBIAR_CONTRASENA', req.user.username);
   res.json({ ok: true });
 });

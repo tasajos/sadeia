@@ -67,20 +67,21 @@ function TareaModal({ id, onClose, onSaved }) {
   );
 }
 
-function NuevaTarea({ onClose, onSaved }) {
+/** Asignación directa de una tarea; con `eventoId` el evento queda fijado (desde la página del evento). */
+export function NuevaTarea({ onClose, onSaved, eventoId }) {
   const { data: cat } = useApi('/admin/catalogos');
   const { data: evs } = useApi('/eventos');
   const toast = useToast();
   const { busy, run } = useAction(toast);
   const def = new Date(Date.now() + 12 * 3600e3);
-  const [f, setF] = useState({ evento_id: '', titulo: '', institucion_id: '', responsable: '', plazo: new Date(def.getTime() - def.getTimezoneOffset() * 60000).toISOString().slice(0, 16) });
+  const [f, setF] = useState({ evento_id: eventoId ? String(eventoId) : '', titulo: '', institucion_id: '', responsable: '', plazo: new Date(def.getTime() - def.getTimezoneOffset() * 60000).toISOString().slice(0, 16) });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <Modal title="Asignar tarea (CU-08)" onClose={onClose} footer={<>
       <button className="btn sm outline" onClick={onClose}>Cancelar</button>
       <button className="btn sm primary" disabled={busy || !f.evento_id || !f.titulo || !f.institucion_id} onClick={() => run(async () => (await api.post('/coordinacion/tareas', f)).data, (r) => `Tarea ${r.codigo} asignada.`).then((r) => r && onSaved())}>Asignar</button>
     </>}>
-      <label className="field"><span>Evento</span><select className="select" value={f.evento_id} onChange={set('evento_id')}><option value="">Seleccione…</option>{evs?.map((e) => <option key={e.id} value={e.id}>{e.codigo} · {e.titulo}</option>)}</select></label>
+      {!eventoId && <label className="field"><span>Evento</span><select className="select" value={f.evento_id} onChange={set('evento_id')}><option value="">Seleccione…</option>{evs?.map((e) => <option key={e.id} value={e.id}>{e.codigo} · {e.titulo}</option>)}</select></label>}
       <label className="field"><span>Tarea</span><input className="input" value={f.titulo} onChange={set('titulo')} /></label>
       <div className="form-grid">
         <label className="field"><span>Institución responsable</span><select className="select" value={f.institucion_id} onChange={set('institucion_id')}><option value="">Seleccione…</option>{cat?.instituciones.map((i) => <option key={i.id} value={i.id}>{i.nombre}</option>)}</select></label>

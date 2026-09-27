@@ -7,6 +7,7 @@ import { api } from '../api/client';
 import { getSocket } from '../api/socket';
 import { NAV, LV } from '../utils/constants';
 import IncomingAlert from './IncomingAlert';
+import CambiarPassword from './CambiarPassword';
 
 function Clock() {
   const [now, setNow] = useState(new Date());
@@ -53,6 +54,7 @@ function Search() {
 export default function Layout() {
   const { user, logout, can } = useAuth();
   const [open, setOpen] = useState(false);
+  const [pw, setPw] = useState(false);
   const loc = useLocation();
   const nav = useNavigate();
   const { data: cnt } = useApi('/tablero/contadores', ['alerta:nueva', 'alerta:actualizada', 'reporte:nuevo', 'reporte:actualizado', 'tarea:actualizada', 'mision:nueva', 'despacho:actualizado']);
@@ -102,12 +104,14 @@ export default function Layout() {
           <div className="me">
             <div className="avatar">{user.iniciales}</div>
             <div className="me-txt"><b>{user.nombre}</b><small>{user.rol_nombre} · {user.institucion}</small></div>
+            <button className="icon-btn" title="Cambiar contraseña" onClick={() => setPw(true)} aria-label="Cambiar contraseña"><Icon name="key" /></button>
             <button className="icon-btn" title="Cerrar sesión" onClick={() => logout()} aria-label="Cerrar sesión"><Icon name="logout" /></button>
           </div>
         </header>
         <main className="content"><Outlet /></main>
       </div>
       <IncomingAlert />
+      {pw && <CambiarPassword onClose={() => setPw(false)} />}
     </div>
   );
 }

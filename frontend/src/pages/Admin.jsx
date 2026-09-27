@@ -176,7 +176,7 @@ function UsuarioModal({ user, onClose, onSaved }) {
   if (temp) {
     return (
       <Modal title="Contraseña temporal" onClose={onSaved} footer={<button className="btn sm primary" onClick={onSaved}>Listo</button>}>
-        <div className="note warn"><Icon name="key" />Entregue esta contraseña por un canal seguro. No se volverá a mostrar.</div>
+        <div className="note warn"><Icon name="key" />Entregue esta contraseña por un canal seguro. No se volverá a mostrar y el usuario deberá cambiarla en su primer ingreso.</div>
         <input className="input mono" readOnly value={temp} onFocus={(e) => e.target.select()} />
       </Modal>
     );
